@@ -1,0 +1,6 @@
+{
+  "name": "bigp: Interactive Process & Bioprocess Control Academy",
+  "description": "Interactive control engineering academy and Simulink-style studio featuring deterministic fixed-step simulation, drag-and-wire block diagrams, live interactive math, and automated challenges.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
