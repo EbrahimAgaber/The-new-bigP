@@ -13,6 +13,7 @@ import {
   Award,
   Sparkles,
   RotateCcw,
+  HelpCircle,
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -26,6 +27,7 @@ interface NavigationProps {
   onOpenRoadmap: () => void;
   onOpenBioprocessModal: () => void;
   onOpenMasteryModal?: () => void;
+  onOpenTutorialModal?: () => void;
   onResetProgress: () => void;
 }
 
@@ -40,6 +42,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenRoadmap,
   onOpenBioprocessModal,
   onOpenMasteryModal,
+  onOpenTutorialModal,
   onResetProgress,
 }) => {
   const isAr = lang === 'ar';
@@ -104,6 +107,18 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         {/* Right Tools & Actions */}
         <div className="flex items-center gap-2">
+          {/* Tutorial / Learning Guide Trigger */}
+          {onOpenTutorialModal && (
+            <button
+              onClick={onOpenTutorialModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 text-xs font-bold transition-all shadow-xs"
+              title={isAr ? 'دليل البدء السريع وكيف تقرأ المخطط' : 'Quick Start & How to Read Charts'}
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-cyan-600" />
+              <span className="hidden sm:inline">{isAr ? 'دليل الاستخدام' : 'Quick Guide'}</span>
+            </button>
+          )}
+
           {/* Roadmap Trigger */}
           <button
             onClick={onOpenRoadmap}

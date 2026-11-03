@@ -26,6 +26,7 @@ import { RootLocusViewer } from './components/RootLocusViewer';
 import { RgaMatrixViewer } from './components/RgaMatrixViewer';
 import { IndustrialPidVisualizer } from './components/IndustrialPidVisualizer';
 import { MasteryDashboardModal } from './components/MasteryDashboardModal';
+import { InteractiveTutorialModal } from './components/InteractiveTutorialModal';
 import {
   Sliders,
   Activity,
@@ -84,11 +85,15 @@ export default function App() {
   const [rightTab, setRightTab] = useState<'steps' | 'prove' | 'metrics'>('steps');
   // FreeCodeCamp Study Journey tab: 'concept' | 'steps' | 'prove' | 'all'
   const [journeyTab, setJourneyTab] = useState<'concept' | 'steps' | 'prove' | 'all'>('concept');
+  // Studio Workbench active display tab: 'overview' (P&ID + Scope stacked) | 'flowsheet' | 'scope' | 'schematic'
+  const [studioDisplayTab, setStudioDisplayTab] = useState<'overview' | 'scope' | 'flowsheet'>('overview');
 
   // Drawers and Modals
   const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
   const [isBioprocessOpen, setIsBioprocessOpen] = useState(false);
   const [isMasteryOpen, setIsMasteryOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [highlightedUiArea, setHighlightedUiArea] = useState<string | null>(null);
   const [activeCaseStudyIndex, setActiveCaseStudyIndex] = useState<1 | 2 | 3 | 4>(1);
 
   // 3. Simulation Engine State
@@ -734,11 +739,12 @@ export default function App() {
         onOpenRoadmap={() => setIsRoadmapOpen(true)}
         onOpenBioprocessModal={() => setIsBioprocessOpen(true)}
         onOpenMasteryModal={() => setIsMasteryOpen(true)}
+        onOpenTutorialModal={() => setIsTutorialOpen(true)}
         onResetProgress={handleResetProgress}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
+      <main className="flex-1 w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8 py-4 space-y-4">
         {mode === 'studio' ? (
           /* Studio Mode: Full Freeform Simulink Sandbox */
           <div className="space-y-4">
@@ -773,7 +779,7 @@ export default function App() {
         ) : (
           /* Academy Mode: FreeCodeCamp-Style Split Study Journey Layout */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* LEFT PANE (40-42% width / 5 cols on lg viewports): Complete Study Journey */}
+            {/* LEFT PANE (42% width / 5 cols on lg viewports): Complete Study Journey */}
             <div className="lg:col-span-5 space-y-4">
               {/* 1. Module Header Bar */}
               <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -1039,71 +1045,115 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Section 1: Equipment Schematic & P&ID Flowsheet Workbench */}
-                <div className="space-y-3">
-                  {/* For Module 13 & 14: Show Industrial PID Visualizer */}
-                  {(currentModule.id === 'm13' || currentModule.id === 'm14') ? (
-                    <div className="space-y-2">
-                      {currentModule.id === 'm13' && (
-                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold">
-                          <span className="text-slate-500 px-2 text-[11px]">{isAr ? 'دراسة الحالة:' : 'Case Study:'}</span>
-                          {[
-                            { idx: 1, labelEn: '1. CSTR Runaway', labelAr: '1. مفاعل CSTR' },
-                            { idx: 2, labelEn: '2. Heat Exchanger', labelAr: '2. المبادل' },
-                            { idx: 3, labelEn: '3. Distillation', labelAr: '3. التقطير' },
-                            { idx: 4, labelEn: '4. Boiler Swell', labelAr: '4. المرجل' },
-                          ].map((c) => (
-                            <button
-                              key={c.idx}
-                              onClick={() => handleSelectCaseStudy(c.idx as 1 | 2 | 3 | 4)}
-                              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-colors ${
-                                activeCaseStudyIndex === c.idx
-                                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                                  : 'text-slate-600 hover:text-slate-900'
-                              }`}
-                            >
-                              {isAr ? c.labelAr : c.labelEn}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <IndustrialPidVisualizer
-                        caseIndex={currentModule.id === 'm14' ? 1 : activeCaseStudyIndex}
-                        pv={latestPt.pv}
-                        sp={latestPt.sp}
-                        u={latestPt.u}
-                        pv2={latestPt.pv2}
-                        disturbance={plantDrain}
-                        lang={lang}
-                      />
-                    </div>
-                  ) : (
-                    /* Modules 1 to 12: Dual Equipment Schematic & ISA-5.1 Flowsheet */
-                    <div className="grid grid-cols-1 gap-3.5">
-                      <EquipmentVisualizer
-                        type={currentModule.play.equipmentType}
-                        levelPct={latestPt.pv}
-                        targetSP={latestPt.sp}
-                        valveOpeningPct={latestPt.u}
-                        disturbanceFlow={plantDrain}
-                        activeFeature={activeFeature}
-                        lang={lang}
-                      />
+                {/* Studio Workbench View Switcher Tabs (Overview | Scoped Strip Chart | Full P&ID) */}
+                <div className="flex items-center justify-between gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setStudioDisplayTab('overview')}
+                      className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                        studioDisplayTab === 'overview'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {isAr ? 'العرض الموحد (Overview)' : 'Overview'}
+                    </button>
+                    <button
+                      onClick={() => setStudioDisplayTab('scope')}
+                      className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                        studioDisplayTab === 'scope'
+                          ? 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-cyan-600" />
+                      <span>{isAr ? 'راسم الإشارات (Scope)' : 'Scope Traces'}</span>
+                    </button>
+                    <button
+                      onClick={() => setStudioDisplayTab('flowsheet')}
+                      className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                        studioDisplayTab === 'flowsheet'
+                          ? 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Activity className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>{isAr ? 'مخطط P&ID' : 'P&ID Flowsheet'}</span>
+                    </button>
+                  </div>
 
-                      <BlockDiagramCanvas
-                        graph={graph}
-                        activeSignals={activeSignals}
-                        onUpdateGraph={(newG) => {
-                          setGraph(newG);
-                          if (engineRef.current) engineRef.current.setGraph(newG);
-                        }}
-                        activeFeature={activeFeature}
-                        allowWiring={currentModule.id === 'm3'}
-                        lang={lang}
-                      />
-                    </div>
-                  )}
+                  <span className="text-[11px] text-slate-500 font-mono hidden md:inline px-2">
+                    {isAr ? 'تحديث لحظي بمعدل 50ms' : '50ms real-time ODE loop'}
+                  </span>
                 </div>
+
+                {/* Section 1: Equipment Schematic & P&ID Flowsheet Workbench */}
+                {(studioDisplayTab === 'overview' || studioDisplayTab === 'flowsheet') && (
+                  <div className="space-y-3">
+                    {/* For Module 13 & 14: Show Industrial PID Visualizer */}
+                    {(currentModule.id === 'm13' || currentModule.id === 'm14') ? (
+                      <div className="space-y-2">
+                        {currentModule.id === 'm13' && (
+                          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold">
+                            <span className="text-slate-500 px-2 text-[11px]">{isAr ? 'دراسة الحالة:' : 'Case Study:'}</span>
+                            {[
+                              { idx: 1, labelEn: '1. CSTR Runaway', labelAr: '1. مفاعل CSTR' },
+                              { idx: 2, labelEn: '2. Heat Exchanger', labelAr: '2. المبادل' },
+                              { idx: 3, labelEn: '3. Distillation', labelAr: '3. التقطير' },
+                              { idx: 4, labelEn: '4. Boiler Swell', labelAr: '4. المرجل' },
+                            ].map((c) => (
+                              <button
+                                key={c.idx}
+                                onClick={() => handleSelectCaseStudy(c.idx as 1 | 2 | 3 | 4)}
+                                className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-colors ${
+                                  activeCaseStudyIndex === c.idx
+                                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                              >
+                                {isAr ? c.labelAr : c.labelEn}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <IndustrialPidVisualizer
+                          caseIndex={currentModule.id === 'm14' ? 1 : activeCaseStudyIndex}
+                          pv={latestPt.pv}
+                          sp={latestPt.sp}
+                          u={latestPt.u}
+                          pv2={latestPt.pv2}
+                          disturbance={plantDrain}
+                          lang={lang}
+                        />
+                      </div>
+                    ) : (
+                      /* Modules 1 to 12: Dual Equipment Schematic & ISA-5.1 Flowsheet */
+                      <div className="grid grid-cols-1 gap-3.5">
+                        <EquipmentVisualizer
+                          type={currentModule.play.equipmentType}
+                          levelPct={latestPt.pv}
+                          targetSP={latestPt.sp}
+                          valveOpeningPct={latestPt.u}
+                          disturbanceFlow={plantDrain}
+                          activeFeature={activeFeature}
+                          lang={lang}
+                        />
+
+                        <BlockDiagramCanvas
+                          graph={graph}
+                          activeSignals={activeSignals}
+                          onUpdateGraph={(newG) => {
+                            setGraph(newG);
+                            if (engineRef.current) engineRef.current.setGraph(newG);
+                          }}
+                          activeFeature={activeFeature}
+                          allowWiring={currentModule.id === 'm3'}
+                          lang={lang}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Section 2: Docked Consolidated Control Surface */}
                 <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
@@ -1203,33 +1253,35 @@ export default function App() {
                 </div>
 
                 {/* Section 3: Digital Oscilloscope Scope Chart */}
-                <ScopeChart
-                  history={history}
-                  isRunning={isRunning}
-                  onTogglePlay={() => setIsRunning(!isRunning)}
-                  onReset={() => {
-                    if (engineRef.current) engineRef.current.reset();
-                    setHistory([]);
-                  }}
-                  activeFeature={activeFeature}
-                  targetSP={latestPt.sp}
-                  toleranceBandPct={currentModule.prove.toleranceBandPct}
-                  sweepCurves={sweepCurves}
-                  moduleId={currentModule.id}
-                  lang={lang}
-                  showTermMeter={currentModule.play.showTermMeter}
-                  fopdtParams={
-                    currentModule.id === 'm2'
-                      ? {
-                          k: graph.nodes.find((n) => n.type === 'FirstOrder')?.config.gain ?? 1.5,
-                          tau: graph.nodes.find((n) => n.type === 'FirstOrder')?.config.timeConstant ?? 5.0,
-                          theta: graph.nodes.find((n) => n.type === 'DeadTime')?.config.deadTime ?? 2.0,
-                          stepTime: 3.0,
-                          stepVal: 40,
-                        }
-                      : undefined
-                  }
-                />
+                {(studioDisplayTab === 'overview' || studioDisplayTab === 'scope') && (
+                  <ScopeChart
+                    history={history}
+                    isRunning={isRunning}
+                    onTogglePlay={() => setIsRunning(!isRunning)}
+                    onReset={() => {
+                      if (engineRef.current) engineRef.current.reset();
+                      setHistory([]);
+                    }}
+                    activeFeature={activeFeature}
+                    targetSP={latestPt.sp}
+                    toleranceBandPct={currentModule.prove.toleranceBandPct}
+                    sweepCurves={sweepCurves}
+                    moduleId={currentModule.id}
+                    lang={lang}
+                    showTermMeter={currentModule.play.showTermMeter}
+                    fopdtParams={
+                      currentModule.id === 'm2'
+                        ? {
+                            k: graph.nodes.find((n) => n.type === 'FirstOrder')?.config.gain ?? 1.5,
+                            tau: graph.nodes.find((n) => n.type === 'FirstOrder')?.config.timeConstant ?? 5.0,
+                            theta: graph.nodes.find((n) => n.type === 'DeadTime')?.config.deadTime ?? 2.0,
+                            stepTime: 3.0,
+                            stepVal: 40,
+                          }
+                        : undefined
+                    }
+                  />
+                )}
 
                 {/* Section 4: Specialized Docked Analyzers */}
                 {/* Module 8 Relay Autotuner & Metrics */}
@@ -1384,6 +1436,14 @@ export default function App() {
           }
           setHistory([]);
         }}
+        lang={lang}
+      />
+
+      {/* Interactive Quick Guide & Tutorial Modal */}
+      <InteractiveTutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+        onHighlightElement={(elem) => setHighlightedUiArea(elem)}
         lang={lang}
       />
     </div>

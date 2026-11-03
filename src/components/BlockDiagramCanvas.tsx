@@ -12,7 +12,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BlockNode, CircuitGraph, WireConnection } from '../types/engine';
 import { VisualFeatureId } from '../types/curriculum';
-import { Settings, Trash2, X, Plus, Sparkles, Check, Activity } from 'lucide-react';
+import { Settings, Trash2, X, Plus, Sparkles, Check, Activity, HelpCircle } from 'lucide-react';
 
 interface BlockDiagramCanvasProps {
   graph: CircuitGraph;
@@ -44,6 +44,7 @@ export const BlockDiagramCanvas: React.FC<BlockDiagramCanvasProps> = ({
 
   // Selected block for configuration modal
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [showPidGuide, setShowPidGuide] = useState(false);
 
   const selectedNode = graph.nodes.find((n) => n.id === selectedBlockId);
 
@@ -181,8 +182,20 @@ export const BlockDiagramCanvas: React.FC<BlockDiagramCanvasProps> = ({
           </div>
         </div>
 
-        {/* Live Blocks Counter */}
+        {/* Live Blocks Counter & Guide Trigger */}
         <div className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+          <button
+            onClick={() => setShowPidGuide(!showPidGuide)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-sans font-semibold transition-all ${
+              showPidGuide
+                ? 'bg-cyan-50 border-cyan-300 text-cyan-800'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
+            title={isAr ? 'دليل فهم رموز P&ID' : 'How does P&ID work?'}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-600" />
+            <span className="hidden sm:inline">{isAr ? 'كيف يعمل P&ID؟' : 'How P&ID works'}</span>
+          </button>
           <span className="px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-200">
             {graph.nodes.length} Elements
           </span>
@@ -191,6 +204,46 @@ export const BlockDiagramCanvas: React.FC<BlockDiagramCanvasProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Guide Banner for Learner */}
+      {showPidGuide && (
+        <div className="mt-3 p-3.5 bg-gradient-to-r from-sky-50 to-indigo-50/70 rounded-xl border border-sky-200 text-xs space-y-2 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-900 flex items-center gap-1.5">
+              <span>📐 {isAr ? 'دليل فهم مخطط الأنابيب والأجهزة الصناعي (P&ID):' : 'How the Interactive P&ID Works:'}</span>
+            </span>
+            <button
+              onClick={() => setShowPidGuide(false)}
+              className="text-slate-400 hover:text-slate-600 text-[11px]"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-slate-700 leading-relaxed text-[11px]">
+            {isAr
+              ? 'مخطط P&ID يترجم المنظومة المادية إلى حلقة تحكم ديناميكية. الإشارات الزرقاء تتدفق من الهدف (SP) عبر المقارن إلى صمام التحكم، ثم إلى الخزان، ليعود حساس المستوى بقياس PV لإكمال الحلقة.'
+              : 'The P&ID diagram models the physical system as a closed decision loop. Dynamic signals flow from Setpoint (SP) through the Error Comparator to the Control Valve, which fills the Tank. The Level Sensor then measures PV and feeds it back.'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 font-sans">
+            <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+              <span className="font-bold text-slate-800 block text-[10px]">1. Setpoint (SP)</span>
+              <span className="text-[10px] text-slate-500">{isAr ? 'القيمة المستهدفة المطلوبة' : 'Desired Target value'}</span>
+            </div>
+            <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+              <span className="font-bold text-slate-800 block text-[10px]">2. Comparator (Sum)</span>
+              <span className="text-[10px] text-slate-500">{isAr ? 'يحسب الفجوة e = SP - PV' : 'Calculates error e = SP - PV'}</span>
+            </div>
+            <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+              <span className="font-bold text-slate-800 block text-[10px]">3. Actuator (Valve)</span>
+              <span className="text-[10px] text-slate-500">{isAr ? 'يضخ التدفق للتعويض' : 'Commands inflow rate u'}</span>
+            </div>
+            <div className="p-2 rounded-lg bg-white/90 border border-slate-200">
+              <span className="font-bold text-slate-800 block text-[10px]">4. Process Vessel</span>
+              <span className="text-[10px] text-slate-500">{isAr ? 'الخزان الديناميكي' : 'Accumulates level PV'}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Interactive Canvas Area with Horizontal Scroll Guard */}
       <div className="overflow-x-auto w-full mt-3 rounded-2xl border border-slate-200">

@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ScopeDataPoint } from '../types/engine';
 import { VisualFeatureId } from '../types/curriculum';
-import { Play, Pause, RotateCcw, Clock, AlertCircle } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, AlertCircle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SweepCurve {
   label: string;
@@ -53,6 +53,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
   const [showU, setShowU] = useState(true);
   const [showRawU, setShowRawU] = useState(true);
   const [hoveredPoint, setHoveredPoint] = useState<ScopeDataPoint | null>(null);
+  const [showLegendGuide, setShowLegendGuide] = useState(false);
 
   // Render chart on canvas
   useEffect(() => {
@@ -408,8 +409,21 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
           )}
         </div>
 
-        {/* Trace Toggles */}
+        {/* Trace Toggles & Guide */}
         <div className="flex items-center gap-1.5 font-mono text-xs">
+          <button
+            onClick={() => setShowLegendGuide(!showLegendGuide)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-sans font-semibold transition-all ${
+              showLegendGuide
+                ? 'bg-cyan-50 border-cyan-300 text-cyan-800'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
+            title={isAr ? 'دليل قراءة المنحنيات' : 'How to read this chart'}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-600" />
+            <span className="hidden sm:inline">{isAr ? 'كيف تقرأ المخطط؟' : 'How to read'}</span>
+          </button>
+
           <button
             onClick={() => setShowSP(!showSP)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
@@ -449,6 +463,43 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
           )}
         </div>
       </div>
+
+      {/* Interactive Explanation Box for Learners */}
+      {showLegendGuide && (
+        <div className="p-3 bg-gradient-to-r from-sky-50/80 to-indigo-50/60 rounded-xl border border-sky-200 text-xs space-y-2 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-900 flex items-center gap-1.5">
+              <span>📊 {isAr ? 'دليل قراءة راسم الإشارات اللحظي:' : 'How to Read the Real-Time Scope:'}</span>
+            </span>
+            <button
+              onClick={() => setShowLegendGuide(false)}
+              className="text-slate-400 hover:text-slate-600 text-[11px]"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="p-2 rounded-lg bg-white/90 border border-amber-200">
+              <span className="font-bold text-amber-800 block mb-0.5">🟡 SP (Setpoint)</span>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                {isAr ? 'الهدف المطلوب الذي يحدده المشغل (مثلاً 60% خزان).' : 'The desired target set by recipe or operator.'}
+              </p>
+            </div>
+            <div className="p-2 rounded-lg bg-white/90 border border-sky-200">
+              <span className="font-bold text-sky-800 block mb-0.5">🔵 PV (Process Variable)</span>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                {isAr ? 'القيمة الحقيقية المقاسة الآن. إذا كانت أقل من SP، يوجد خطأ موجب.' : 'The actual measured physical sensor reading.'}
+              </p>
+            </div>
+            <div className="p-2 rounded-lg bg-white/90 border border-purple-200">
+              <span className="font-bold text-purple-800 block mb-0.5">🟣 u (Controller Output)</span>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                {isAr ? 'نسبة فتح الصمام للوصول للهدف والتعويض عن الانجراف.' : 'Valve opening percentage (0-100%) commanded.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Canvas */}
       <div className="relative w-full h-[260px] sm:h-[300px] rounded-xl overflow-hidden border border-slate-200 bg-white shadow-xs">
