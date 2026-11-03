@@ -24,7 +24,32 @@ import { BioprocessModal } from './components/BioprocessModal';
 import { BodeViewer } from './components/BodeViewer';
 import { RootLocusViewer } from './components/RootLocusViewer';
 import { RgaMatrixViewer } from './components/RgaMatrixViewer';
-import { Sliders, Activity, Compass, Layers, CheckCircle2, RefreshCw, Zap, Waves, Crosshair, Network, ArrowRightLeft } from 'lucide-react';
+import { IndustrialPidVisualizer } from './components/IndustrialPidVisualizer';
+import { MasteryDashboardModal } from './components/MasteryDashboardModal';
+import {
+  Sliders,
+  Activity,
+  Compass,
+  Layers,
+  CheckCircle2,
+  RefreshCw,
+  Zap,
+  Waves,
+  Crosshair,
+  Network,
+  ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
+  RotateCcw,
+  BookOpen,
+  HelpCircle,
+  Trophy,
+  ArrowRight,
+  Cpu,
+  Radio,
+} from 'lucide-react';
 
 export default function App() {
   // 1. Language & Global Mode State
@@ -57,10 +82,14 @@ export default function App() {
 
   // Right panel tab in Academy mode: 'steps' | 'prove' | 'metrics'
   const [rightTab, setRightTab] = useState<'steps' | 'prove' | 'metrics'>('steps');
+  // FreeCodeCamp Study Journey tab: 'concept' | 'steps' | 'prove' | 'all'
+  const [journeyTab, setJourneyTab] = useState<'concept' | 'steps' | 'prove' | 'all'>('concept');
 
   // Drawers and Modals
   const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
   const [isBioprocessOpen, setIsBioprocessOpen] = useState(false);
+  const [isMasteryOpen, setIsMasteryOpen] = useState(false);
+  const [activeCaseStudyIndex, setActiveCaseStudyIndex] = useState<1 | 2 | 3 | 4>(1);
 
   // 3. Simulation Engine State
   const [graph, setGraph] = useState<CircuitGraph>(() => currentModule.play.defaultCircuit);
@@ -80,6 +109,7 @@ export default function App() {
   const [isChallengeRunning, setIsChallengeRunning] = useState<boolean>(false);
   const [challengeTimeLeft, setChallengeTimeLeft] = useState<number>(currentModule.prove.durationSeconds);
   const [challengeScore, setChallengeScore] = useState<number>(0);
+  const challengeScoreRef = useRef<number>(0);
   const [challengeMetrics, setChallengeMetrics] = useState({
     iae: 0,
     ise: 0,
@@ -130,11 +160,26 @@ export default function App() {
     setIsChallengeRunning(false);
     setChallengeTimeLeft(targetMod.prove.durationSeconds);
     setChallengeScore(moduleScores[modId] || 0);
+    challengeScoreRef.current = moduleScores[modId] || 0;
     setSweepCurves([]);
     setMysteryResult(null);
     setRightTab('steps');
+    setJourneyTab('concept');
     setActiveGauntletPlantIndex(0);
     setGauntletScores([]);
+  };
+
+  const handleTriggerManualDisturbance = () => {
+    const currentVal = Object.values(currentDisturbances)[0] ?? 0;
+    const newVal = currentVal > 0 ? 0 : 25;
+    const tankNode = graph.nodes.find(
+      (n) => n.type === 'Tank' || n.type === 'FirstOrder' || n.type === 'HeatedVessel' || n.type === 'Bioreactor' || n.type === 'CSTRPlant'
+    );
+    if (tankNode) {
+      setCurrentDisturbances({ [tankNode.id]: newVal });
+    } else {
+      setCurrentDisturbances({ dist: newVal });
+    }
   };
 
   // Switch plant in Module 8 Gauntlet
@@ -216,15 +261,6 @@ export default function App() {
 
       // Real-time challenge scoring
       if (isChallengeRunning) {
-        setChallengeTimeLeft((prev) => {
-          const next = prev - DT * simSpeed;
-          if (next <= 0) {
-            finalizeChallenge(result.metrics);
-            return 0;
-          }
-          return next;
-        });
-
         // Trigger scheduled disturbances
         const simTime = engine.time;
         for (const dist of currentModule.prove.disturbances) {
@@ -290,6 +326,92 @@ export default function App() {
           const ratioScore = ratio >= 3.0 ? 50 : Math.max(0, ratio * 16.6);
           const tolScore = result.metrics.inToleranceRatio * 50;
           liveScore = Math.min(100, Math.round(ratioScore + tolScore));
+        } else if (currentModule.id === 'm13') {
+          // Module 13: Four Industrial Case Studies
+          const currentLatest = result.history[result.history.length - 1];
+          if (activeCaseStudyIndex === 1) {
+            // Case 1: Exothermic CSTR Runaway: Keep |Tr - 350| < 2.5 K, Trip limit 365 K
+            const currentTr = currentLatest?.pv ?? 350.0;
+            if (currentTr >= 365.0) {
+              liveScore = 0; // Catastrophic trip
+            } else {
+              const tempDev = Math.abs(currentTr - 350.0);
+              const devScore = tempDev <= 2.5 ? 60 : Math.max(0, 60 - (tempDev - 2.5) * 15);
+              const tolScore = result.metrics.inToleranceRatio * 40;
+              liveScore = Math.min(100, Math.round(devScore + tolScore));
+            }
+          } else if (activeCaseStudyIndex === 2) {
+            // Case 2: Shell-Tube Exchanger: Outlet temp within +/- 1.5 C
+            const currentT = currentLatest?.pv ?? 65.0;
+            const tempDev = Math.abs(currentT - 65.0);
+            const devScore = tempDev <= 1.5 ? 60 : Math.max(0, 60 - (tempDev - 1.5) * 20);
+            const tolScore = result.metrics.inToleranceRatio * 40;
+            liveScore = Math.min(100, Math.round(devScore + tolScore));
+          } else if (activeCaseStudyIndex === 3) {
+            // Case 3: Binary Distillation: xD >= 97.5%
+            const currentXD = currentLatest?.pv ?? 98.0;
+            const purityScore = currentXD >= 97.5 ? 60 : Math.max(0, 60 - (97.5 - currentXD) * 25);
+            const tolScore = result.metrics.inToleranceRatio * 40;
+            liveScore = Math.min(100, Math.round(purityScore + tolScore));
+          } else {
+            // Case 4: Boiler Drum: Lmin > 20%, Lmax < 80%
+            const currentL = currentLatest?.pv ?? 50.0;
+            if (currentL < 20.0 || currentL > 80.0) {
+              liveScore = 0; // Boiler dryout or flood trip
+            } else {
+              const tolScore = result.metrics.inToleranceRatio * 60;
+              const iaeScore = Math.max(0, 40 - result.metrics.iae * 0.1);
+              liveScore = Math.min(100, Math.round(tolScore + iaeScore));
+            }
+          }
+        } else if (currentModule.prove.challengeType === 'cstrExothermicRunaway') {
+          // Module 13 Case 1 fallback: Keep |Tr - 350| < 2.5 K, Trip limit 365 K
+          const currentLatest = result.history[result.history.length - 1];
+          const currentTr = currentLatest?.pv ?? 350.0;
+          if (currentTr >= 365.0) {
+            liveScore = 0; // Catastrophic trip
+          } else {
+            const tempDev = Math.abs(currentTr - 350.0);
+            const devScore = tempDev <= 2.5 ? 60 : Math.max(0, 60 - (tempDev - 2.5) * 15);
+            const tolScore = result.metrics.inToleranceRatio * 40;
+            liveScore = Math.min(100, Math.round(devScore + tolScore));
+          }
+        } else if (currentModule.prove.challengeType === 'heatExchangerFeedforward') {
+          // Module 13 Case 2: Outlet temp within +/- 1.5 C
+          const currentLatest = result.history[result.history.length - 1];
+          const currentT = currentLatest?.pv ?? 65.0;
+          const tempDev = Math.abs(currentT - 65.0);
+          const devScore = tempDev <= 1.5 ? 60 : Math.max(0, 60 - (tempDev - 1.5) * 20);
+          const tolScore = result.metrics.inToleranceRatio * 40;
+          liveScore = Math.min(100, Math.round(devScore + tolScore));
+        } else if (currentModule.prove.challengeType === 'distillationPurityMimo') {
+          // Module 13 Case 3: xD >= 97.5%
+          const currentLatest = result.history[result.history.length - 1];
+          const currentXD = currentLatest?.pv ?? 98.0;
+          const purityScore = currentXD >= 97.5 ? 60 : Math.max(0, 60 - (97.5 - currentXD) * 25);
+          const tolScore = result.metrics.inToleranceRatio * 40;
+          liveScore = Math.min(100, Math.round(purityScore + tolScore));
+        } else if (currentModule.prove.challengeType === 'boilerDrumShrinkSwell') {
+          // Module 13 Case 4: Lmin > 20%, Lmax < 80%
+          const currentLatest = result.history[result.history.length - 1];
+          const currentL = currentLatest?.pv ?? 50.0;
+          if (currentL < 20.0 || currentL > 80.0) {
+            liveScore = 0; // Boiler dryout or flood trip
+          } else {
+            const tolScore = result.metrics.inToleranceRatio * 60;
+            const iaeScore = Math.max(0, 40 - result.metrics.iae * 0.1);
+            liveScore = Math.min(100, Math.round(tolScore + iaeScore));
+          }
+        } else if (currentModule.prove.challengeType === 'unseenPlantCapstone') {
+          // Module 14: 40% Stability + 35% IAE + 25% Actuator
+          const isStable = Math.abs(result.metrics.currentError) < 15.0;
+          const stabilityScore = isStable ? 40 : Math.max(0, 40 - Math.abs(result.metrics.currentError) * 2);
+          const iaeBench = 180.0;
+          const iaeRatio = result.metrics.iae / iaeBench;
+          const iaeScore = Math.max(0, Math.min(35, Math.round(40 - iaeRatio * 15)));
+          const chatter = result.metrics.valveTravelTotal;
+          const actuatorScore = chatter < 150 ? 25 : Math.max(0, 25 - (chatter - 150) * 0.1);
+          liveScore = Math.min(100, Math.round(stabilityScore + iaeScore + actuatorScore));
         } else if (currentModule.prove.challengeType === 'mimoDecoupling') {
           // Module 12: Decoupler enabled + cross-talk isolation
           const mimoNode = graph.nodes.find((n) => n.id === 'mimo-node' || n.type === 'MIMOPlant');
@@ -305,16 +427,26 @@ export default function App() {
         }
 
         setChallengeScore(liveScore);
+        challengeScoreRef.current = liveScore;
+
+        setChallengeTimeLeft((prev) => {
+          const next = prev - DT * simSpeed;
+          if (next <= 0) {
+            finalizeChallenge(result.metrics);
+            return 0;
+          }
+          return next;
+        });
       }
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [isRunning, simSpeed, currentDisturbances, isChallengeRunning, currentModule, graph, activeGauntletPlantIndex]);
+  }, [isRunning, simSpeed, currentDisturbances, isChallengeRunning, currentModule, graph, activeGauntletPlantIndex, activeCaseStudyIndex]);
 
   // Finalize challenge evaluation
   const finalizeChallenge = (metrics: any) => {
     setIsChallengeRunning(false);
-    const finalScore = Math.round(challengeScore);
+    const finalScore = Math.round(challengeScoreRef.current);
 
     if (currentModule.prove.challengeType === 'tuningGauntlet') {
       const updatedScores = [...gauntletScores];
@@ -385,6 +517,7 @@ export default function App() {
 
     setMysteryResult({ score: calculatedScore, passed: isPass, feedback });
     setChallengeScore(calculatedScore);
+    challengeScoreRef.current = calculatedScore;
 
     if (isPass) {
       setModuleScores((prev) => {
@@ -398,6 +531,88 @@ export default function App() {
   };
 
   // M4 Sweep Kc family
+  // Switch Case Study in Module 13
+  const handleSelectCaseStudy = (caseIdx: 1 | 2 | 3 | 4) => {
+    setActiveCaseStudyIndex(caseIdx);
+    // Switch default graph depending on case study
+    let newGraph = currentModule.play.defaultCircuit;
+    if (caseIdx === 1) {
+      // CSTR
+      newGraph = {
+        nodes: [
+          { id: 'sp-node', type: 'Constant', title: 'Target Setpoint', titleAr: 'الهدف المطلوب', x: 40, y: 80, inputs: [], outputs: [{ id: 'sp-out', name: 'SP', type: 'output' }], config: { value: 350 } },
+          { id: 'sum-node', type: 'Sum', title: 'Comparator', titleAr: 'مقارن الخطأ', x: 180, y: 80, inputs: [{ id: 's-sp', name: '+', type: 'input' }, { id: 's-pv', name: '-', type: 'input' }], outputs: [{ id: 's-out', name: 'e', type: 'output' }], config: { signs: ['+', '-'] } },
+          { id: 'ctrl-primary', type: 'PID', title: 'Reactor Controller', titleAr: 'متحكم المفاعل', x: 320, y: 80, inputs: [{ id: 'c-in', name: 'e', type: 'input' }], outputs: [{ id: 'c-out', name: 'u', type: 'output' }], config: { kc: 3.5, ti: 8.0, td: 0.5, bias: 40, antiWindup: true } },
+          { id: 'plant-cstr', type: 'CSTRPlant', title: 'Exothermic CSTR', titleAr: 'مفاعل CSTR الطارد', x: 520, y: 80, inputs: [{ id: 'p-u', name: 'u_cw', type: 'input' }, { id: 'p-dist', name: 'T_feed', type: 'input' }], outputs: [{ id: 'p-out', name: 'T_r', type: 'output' }], config: { feedTemp: 350.0 } },
+        ],
+        wires: [
+          { id: 'w-sp', fromBlockId: 'sp-node', fromPortId: 'sp-out', toBlockId: 'sum-node', toPortId: 's-sp' },
+          { id: 'w-err', fromBlockId: 'sum-node', fromPortId: 's-out', toBlockId: 'ctrl-primary', toPortId: 'c-in' },
+          { id: 'w-ctrl', fromBlockId: 'ctrl-primary', fromPortId: 'c-out', toBlockId: 'plant-cstr', toPortId: 'p-u' },
+          { id: 'w-fb', fromBlockId: 'plant-cstr', fromPortId: 'p-out', toBlockId: 'sum-node', toPortId: 's-pv' },
+        ],
+      };
+    } else if (caseIdx === 2) {
+      // Heat Exchanger with Feedforward
+      newGraph = {
+        nodes: [
+          { id: 'sp-node', type: 'Constant', title: 'Target Temp', x: 40, y: 60, inputs: [], outputs: [{ id: 'sp-out', name: 'SP', type: 'output' }], config: { value: 65 } },
+          { id: 'sum-err', type: 'Sum', title: 'Comparator', x: 180, y: 60, inputs: [{ id: 's-sp', name: '+', type: 'input' }, { id: 's-pv', name: '-', type: 'input' }], outputs: [{ id: 's-out', name: 'e', type: 'output' }], config: { signs: ['+', '-'] } },
+          { id: 'ctrl-fb', type: 'PI', title: 'Feedback PI', x: 320, y: 60, inputs: [{ id: 'fb-in', name: 'e', type: 'input' }], outputs: [{ id: 'fb-out', name: 'u_fb', type: 'output' }], config: { kc: 2.2, ti: 5.0, bias: 50, antiWindup: true } },
+          { id: 'ff-leadlag', type: 'FeedForward', title: 'Flow Lead-Lag', x: 320, y: 220, inputs: [{ id: 'ff-in', name: 'F_proc', type: 'input' }], outputs: [{ id: 'ff-out', name: 'u_ff', type: 'output' }], config: { ffGain: 0.8, tauLead: 4.0, tauLag: 2.0 } },
+          { id: 'sum-u', type: 'Sum', title: 'Sum u', x: 470, y: 120, inputs: [{ id: 'u-fb', name: '+', type: 'input' }, { id: 'u-ff', name: '+', type: 'input' }], outputs: [{ id: 'u-out', name: 'u', type: 'output' }], config: { signs: ['+', '+'] } },
+          { id: 'hex-plant', type: 'HeatExchangerPlant', title: 'Heat Exchanger', x: 620, y: 120, inputs: [{ id: 'h-u', name: 'u_steam', type: 'input' }, { id: 'h-f', name: 'F_proc', type: 'input' }], outputs: [{ id: 'h-out', name: 'Tout', type: 'output' }], config: { processFluidFlow: 50.0 } },
+        ],
+        wires: [
+          { id: 'w1', fromBlockId: 'sp-node', fromPortId: 'sp-out', toBlockId: 'sum-err', toPortId: 's-sp' },
+          { id: 'w2', fromBlockId: 'sum-err', fromPortId: 's-out', toBlockId: 'ctrl-fb', toPortId: 'fb-in' },
+          { id: 'w3', fromBlockId: 'ctrl-fb', fromPortId: 'fb-out', toBlockId: 'sum-u', toPortId: 'u-fb' },
+          { id: 'w4', fromBlockId: 'ff-leadlag', fromPortId: 'ff-out', toBlockId: 'sum-u', toPortId: 'u-ff' },
+          { id: 'w5', fromBlockId: 'sum-u', fromPortId: 'u-out', toBlockId: 'hex-plant', toPortId: 'h-u' },
+          { id: 'w6', fromBlockId: 'hex-plant', fromPortId: 'h-out', toBlockId: 'sum-err', toPortId: 's-pv' },
+        ],
+      };
+    } else if (caseIdx === 3) {
+      // Distillation
+      newGraph = {
+        nodes: [
+          { id: 'sp-node', type: 'Constant', title: 'Target Purity (xD)', x: 40, y: 80, inputs: [], outputs: [{ id: 'sp-out', name: 'SP', type: 'output' }], config: { value: 98 } },
+          { id: 'sum-node', type: 'Sum', title: 'Comparator', x: 180, y: 80, inputs: [{ id: 's-sp', name: '+', type: 'input' }, { id: 's-pv', name: '-', type: 'input' }], outputs: [{ id: 's-out', name: 'e', type: 'output' }], config: { signs: ['+', '-'] } },
+          { id: 'ctrl-pid', type: 'PID', title: 'Reflux Controller', x: 320, y: 80, inputs: [{ id: 'c-in', name: 'e', type: 'input' }], outputs: [{ id: 'c-out', name: 'L', type: 'output' }], config: { kc: 2.0, ti: 10.0, bias: 50, antiWindup: true } },
+          { id: 'dist-plant', type: 'DistillationColumnPlant', title: 'Binary Fractionator', x: 520, y: 80, inputs: [{ id: 'p-L', name: 'Reflux L', type: 'input' }, { id: 'p-V', name: 'Steam V', type: 'input' }, { id: 'p-dist', name: 'F_dist', type: 'input' }], outputs: [{ id: 'p-out', name: 'xD', type: 'output' }], config: { feedComp: 50.0 } },
+        ],
+        wires: [
+          { id: 'w1', fromBlockId: 'sp-node', fromPortId: 'sp-out', toBlockId: 'sum-node', toPortId: 's-sp' },
+          { id: 'w2', fromBlockId: 'sum-node', fromPortId: 's-out', toBlockId: 'ctrl-pid', toPortId: 'c-in' },
+          { id: 'w3', fromBlockId: 'ctrl-pid', fromPortId: 'c-out', toBlockId: 'dist-plant', toPortId: 'p-L' },
+          { id: 'w4', fromBlockId: 'dist-plant', fromPortId: 'p-out', toBlockId: 'sum-node', toPortId: 's-pv' },
+        ],
+      };
+    } else {
+      // Boiler Drum Swell
+      newGraph = {
+        nodes: [
+          { id: 'sp-node', type: 'Constant', title: 'Target Level', x: 40, y: 80, inputs: [], outputs: [{ id: 'sp-out', name: 'SP', type: 'output' }], config: { value: 50 } },
+          { id: 'sum-node', type: 'Sum', title: 'Comparator', x: 180, y: 80, inputs: [{ id: 's-sp', name: '+', type: 'input' }, { id: 's-pv', name: '-', type: 'input' }], outputs: [{ id: 's-out', name: 'e', type: 'output' }], config: { signs: ['+', '-'] } },
+          { id: 'ctrl-pid', type: 'PID', title: '3-Element Level PID', x: 320, y: 80, inputs: [{ id: 'c-in', name: 'e', type: 'input' }], outputs: [{ id: 'c-out', name: 'u', type: 'output' }], config: { kc: 1.8, ti: 12.0, td: 1.0, bias: 50, antiWindup: true } },
+          { id: 'boiler-plant', type: 'BoilerDrumPlant', title: 'Boiler Drum (Swell)', x: 520, y: 80, inputs: [{ id: 'b-fw', name: 'Feedwater', type: 'input' }, { id: 'b-steam', name: 'Steam Demand', type: 'input' }], outputs: [{ id: 'b-out', name: 'Drum Level', type: 'output' }], config: { inverseTauZ: 2.5 } },
+        ],
+        wires: [
+          { id: 'w1', fromBlockId: 'sp-node', fromPortId: 'sp-out', toBlockId: 'sum-node', toPortId: 's-sp' },
+          { id: 'w2', fromBlockId: 'sum-node', fromPortId: 's-out', toBlockId: 'ctrl-pid', toPortId: 'c-in' },
+          { id: 'w3', fromBlockId: 'ctrl-pid', fromPortId: 'c-out', toBlockId: 'boiler-plant', toPortId: 'b-fw' },
+          { id: 'w4', fromBlockId: 'boiler-plant', fromPortId: 'b-out', toBlockId: 'sum-node', toPortId: 's-pv' },
+        ],
+      };
+    }
+    setGraph(newGraph);
+    if (engineRef.current) {
+      engineRef.current.setGraph(newGraph);
+      engineRef.current.reset();
+    }
+    setHistory([]);
+  };
+
   const handleSweepKc = () => {
     const kcValues = [0.5, 2.0, 5.0, 15.0];
     const colors = ['#60a5fa', '#34d399', '#f59e0b', '#f43f5e'];
@@ -429,6 +644,7 @@ export default function App() {
     setCurrentDisturbances({});
     setChallengeTimeLeft(currentModule.prove.durationSeconds);
     setChallengeScore(0);
+    challengeScoreRef.current = 0;
     setIsChallengeRunning(true);
     setIsRunning(true);
   };
@@ -444,6 +660,10 @@ export default function App() {
 
   // Exposed control update in Play panel
   const handleUpdateControl = (ctrl: any, value: any) => {
+    if (ctrl.id === 'case-selector') {
+      handleSelectCaseStudy(value as 1 | 2 | 3 | 4);
+      return;
+    }
     const newNodes = graph.nodes.map((n) => {
       if (n.id === ctrl.blockId) {
         return {
@@ -490,11 +710,18 @@ export default function App() {
   };
 
   const isAr = lang === 'ar';
-  const latestPt = history.length > 0 ? history[history.length - 1] : { sp: 60, pv: 25, u: 30 };
+  const latestPt: ScopeDataPoint = history.length > 0 ? history[history.length - 1] : { time: 0, sp: 60, pv: 25, u: 30, error: 35, up: 30, ui: 0, ud: 0, derivativeSlope: 0, isSaturated: false, valveChatter: 0, disturbance: 0, pv2: undefined, sp2: undefined };
   const plantDrain = Object.values(currentDisturbances)[0] ?? 0;
 
+  const prevModNum = currentModule.number - 1;
+  const nextModNum = currentModule.number + 1;
+  const prevModKey = `m${prevModNum}`;
+  const nextModKey = `m${nextModNum}`;
+  const canGoPrev = prevModNum >= 1;
+  const canGoNext = nextModNum <= 14 && unlockedModules.includes(nextModKey);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* 1. Top Navigation Bar */}
       <Navigation
         mode={mode}
@@ -506,6 +733,7 @@ export default function App() {
         moduleScores={moduleScores}
         onOpenRoadmap={() => setIsRoadmapOpen(true)}
         onOpenBioprocessModal={() => setIsBioprocessOpen(true)}
+        onOpenMasteryModal={() => setIsMasteryOpen(true)}
         onResetProgress={handleResetProgress}
       />
 
@@ -543,87 +771,379 @@ export default function App() {
             />
           </div>
         ) : (
-          /* Academy Mode: 4-Part Pedagogical Workflow (Mental Model, See the Math, Play, Prove) */
-          <div className="space-y-5">
-            {/* Pillar 1: Mental Model Banner */}
-            <MentalModelBanner module={currentModule} lang={lang} />
-
-            {/* Pillar 2: See the Math Interactive Equation Card */}
-            <SeeTheMathCard
-              module={currentModule}
-              lang={lang}
-              activeFeature={activeFeature}
-              onHoverFeature={setActiveFeature}
-            />
-
-            {/* Pillar 3 & 4: Play Center + Right Guided Steps & Prove Challenges */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              {/* Left/Center (Cols 1 to 8): Live Animated Equipment + Block Canvas + Scope */}
-              <div className="lg:col-span-8 space-y-4">
-                {/* Visual Equipment & Diagram Split View */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <EquipmentVisualizer
-                    type={currentModule.play.equipmentType}
-                    levelPct={latestPt.pv}
-                    targetSP={latestPt.sp}
-                    valveOpeningPct={latestPt.u}
-                    disturbanceFlow={plantDrain}
-                    activeFeature={activeFeature}
-                    lang={lang}
-                  />
-
-                  {/* Interactive Block Diagram */}
-                  <BlockDiagramCanvas
-                    graph={graph}
-                    activeSignals={activeSignals}
-                    onUpdateGraph={(newG) => {
-                      setGraph(newG);
-                      if (engineRef.current) engineRef.current.setGraph(newG);
-                    }}
-                    activeFeature={activeFeature}
-                    allowWiring={currentModule.id === 'm3'}
-                    lang={lang}
-                  />
+          /* Academy Mode: FreeCodeCamp-Style Split Study Journey Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* LEFT PANE (40-42% width / 5 cols on lg viewports): Complete Study Journey */}
+            <div className="lg:col-span-5 space-y-4">
+              {/* 1. Module Header Bar */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 to-sky-700 flex items-center justify-center text-white font-mono font-bold text-sm shadow-sm shrink-0">
+                    {currentModule.number}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">
+                        {isAr ? `الوحدة ${currentModule.number} من 14` : `Module ${currentModule.number} of 14`}
+                      </span>
+                      {(moduleScores[currentModuleId] || 0) >= 70 && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>{moduleScores[currentModuleId]}%</span>
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate mt-0.5">
+                      {isAr ? currentModule.titleAr : currentModule.titleEn}
+                    </h2>
+                  </div>
                 </div>
 
-                {/* Exposed Controls Sliders Bar (Play Pillar) */}
-                <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-md">
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs mb-2">
-                    <span className="font-bold text-white flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                      {isAr ? 'عناصر التحكم المتاحة لهذا الدرس:' : 'Lesson Interactive Controls:'}
+                {/* Previous / Next Module Navigation Arrows */}
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button
+                    disabled={!canGoPrev}
+                    onClick={() => canGoPrev && handleSelectModule(prevModKey)}
+                    title={isAr ? 'الوحدة السابقة' : 'Previous Module'}
+                    className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    disabled={!canGoNext}
+                    onClick={() => canGoNext && handleSelectModule(nextModKey)}
+                    title={isAr ? 'الوحدة التالية' : 'Next Module'}
+                    className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Study Journey Segmented Tab Switcher */}
+              <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 shadow-inner">
+                <button
+                  onClick={() => setJourneyTab('concept')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    journeyTab === 'concept'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
+                  <span className="hidden sm:inline">{isAr ? '1. المفهوم' : '1. Concept & Math'}</span>
+                  <span className="sm:hidden">{isAr ? 'المفهوم' : 'Concept'}</span>
+                </button>
+
+                <button
+                  onClick={() => setJourneyTab('steps')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    journeyTab === 'steps'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden sm:inline">{isAr ? '2. الخطوات' : '2. Guided Steps'}</span>
+                  <span className="sm:hidden">{isAr ? 'الخطوات' : 'Steps'}</span>
+                </button>
+
+                <button
+                  onClick={() => setJourneyTab('prove')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    journeyTab === 'prove'
+                      ? 'bg-amber-100 text-amber-950 shadow-sm border border-amber-300'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="hidden sm:inline">{isAr ? '3. الإثبات' : '3. Prove'}</span>
+                  <span className="sm:hidden">{isAr ? 'الإثبات' : 'Prove'}</span>
+                  {isChallengeRunning && (
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setJourneyTab('all')}
+                  title={isAr ? 'عرض الرحلة الكاملة' : 'View Full Journey'}
+                  className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                    journeyTab === 'all'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="text-[11px]">{isAr ? 'الكل' : 'All'}</span>
+                </button>
+              </div>
+
+              {/* 3. Study Journey Content Panels */}
+              {(journeyTab === 'concept' || journeyTab === 'all') && (
+                <div className="space-y-4">
+                  <MentalModelBanner module={currentModule} lang={lang} />
+                  <SeeTheMathCard
+                    module={currentModule}
+                    lang={lang}
+                    activeFeature={activeFeature}
+                    onHoverFeature={setActiveFeature}
+                  />
+                  {journeyTab === 'concept' && (
+                    <button
+                      onClick={() => setJourneyTab('steps')}
+                      className="w-full py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                    >
+                      <span>{isAr ? 'الانتقال إلى خطوات التطبيق الموجهة' : 'Continue to Guided Steps'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {(journeyTab === 'steps' || journeyTab === 'all') && (
+                <div className="space-y-4">
+                  <GuidedStepsPanel module={currentModule} lang={lang} />
+                  {journeyTab === 'steps' && (
+                    <button
+                      onClick={() => setJourneyTab('prove')}
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                    >
+                      <Trophy className="w-4 h-4" />
+                      <span>{isAr ? 'الانتقال إلى تحدي الإثبات الهندسي' : 'Proceed to Graded Challenge'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {(journeyTab === 'prove' || journeyTab === 'all') && (
+                <ProveChallengePanel
+                  module={currentModule}
+                  score={challengeScore}
+                  isChallengeRunning={isChallengeRunning}
+                  challengeTimeLeft={challengeTimeLeft}
+                  onStartChallenge={handleStartChallenge}
+                  onStopChallenge={handleStopChallenge}
+                  onUnlockNext={() => {
+                    const nextModNum = currentModule.number + 1;
+                    const nextModKey = `m${nextModNum}`;
+                    if (MODULE_SPECS[nextModKey]) {
+                      handleSelectModule(nextModKey);
+                    }
+                  }}
+                  currentMetrics={challengeMetrics}
+                  mysteryInputs={mysteryInputs}
+                  onUpdateMysteryInputs={setMysteryInputs}
+                  onSubmitMysteryGuesses={handleValidateMysteryGuesses}
+                  mysteryScoreResult={mysteryResult}
+                  activeGauntletPlantIndex={activeGauntletPlantIndex}
+                  onSelectGauntletPlant={handleSelectGauntletPlant}
+                  gauntletScores={gauntletScores}
+                  lang={lang}
+                />
+              )}
+            </div>
+
+            {/* RIGHT PANE (58-60% width / 7 cols on lg viewports): Consolidated Studio Workspace */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-5 space-y-4">
+                {/* Studio Toolbar Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-600 font-bold">
+                      <Cpu className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          {isAr ? 'مختبر المحاكاة ومعدات التحكم' : 'Simulation Studio Workspace'}
+                        </h3>
+                        {isChallengeRunning ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-300 animate-pulse">
+                            <Radio className="w-3 h-3 text-rose-600" />
+                            <span>{isAr ? 'تحدي نشط:' : 'Scored Run:'} {challengeTimeLeft.toFixed(0)}s</span>
+                          </span>
+                        ) : isRunning ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                            <span>{isAr ? 'يعمل' : 'Live'}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                            {isAr ? 'متوقف' : 'Paused'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Transport Controls Toolbar */}
+                  <div className="flex items-center gap-2">
+                    {/* Speed Selector */}
+                    <div className="flex items-center rounded-xl bg-slate-100 border border-slate-200 p-0.5 font-mono text-[10px]">
+                      {[1, 2, 5].map((spd) => (
+                        <button
+                          key={spd}
+                          onClick={() => setSimSpeed(spd)}
+                          className={`px-2 py-1 rounded-lg font-bold transition-all ${
+                            simSpeed === spd
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          {spd}x
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Play/Pause */}
+                    <button
+                      onClick={() => setIsRunning(!isRunning)}
+                      className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm ${
+                        isRunning
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/20'
+                      }`}
+                      title={isRunning ? (isAr ? 'إيقاف مؤقت' : 'Pause') : (isAr ? 'تشغيل' : 'Run')}
+                    >
+                      {isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                      <span className="hidden sm:inline">{isRunning ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تشغيل' : 'Run')}</span>
+                    </button>
+
+                    {/* Reset */}
+                    <button
+                      onClick={() => {
+                        if (engineRef.current) engineRef.current.reset();
+                        setHistory([]);
+                        setCurrentDisturbances({});
+                      }}
+                      className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-bold transition-colors shadow-sm"
+                      title={isAr ? 'إعادة ضبط المنظومة' : 'Reset Simulation'}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Quick Disturbance Shock */}
+                    <button
+                      onClick={handleTriggerManualDisturbance}
+                      className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-colors shadow-sm flex items-center gap-1 ${
+                        plantDrain > 0
+                          ? 'bg-rose-50 border-rose-300 text-rose-700'
+                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+                      }`}
+                      title={isAr ? 'تطبيق اضطراب مفاجئ لفحص قدرة المتحكم' : 'Trigger disturbance load shock'}
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="hidden md:inline">{isAr ? 'اضطراب مفاجئ' : 'Load Shock'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 1: Equipment Schematic & P&ID Flowsheet Workbench */}
+                <div className="space-y-3">
+                  {/* For Module 13 & 14: Show Industrial PID Visualizer */}
+                  {(currentModule.id === 'm13' || currentModule.id === 'm14') ? (
+                    <div className="space-y-2">
+                      {currentModule.id === 'm13' && (
+                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold">
+                          <span className="text-slate-500 px-2 text-[11px]">{isAr ? 'دراسة الحالة:' : 'Case Study:'}</span>
+                          {[
+                            { idx: 1, labelEn: '1. CSTR Runaway', labelAr: '1. مفاعل CSTR' },
+                            { idx: 2, labelEn: '2. Heat Exchanger', labelAr: '2. المبادل' },
+                            { idx: 3, labelEn: '3. Distillation', labelAr: '3. التقطير' },
+                            { idx: 4, labelEn: '4. Boiler Swell', labelAr: '4. المرجل' },
+                          ].map((c) => (
+                            <button
+                              key={c.idx}
+                              onClick={() => handleSelectCaseStudy(c.idx as 1 | 2 | 3 | 4)}
+                              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-colors ${
+                                activeCaseStudyIndex === c.idx
+                                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              {isAr ? c.labelAr : c.labelEn}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <IndustrialPidVisualizer
+                        caseIndex={currentModule.id === 'm14' ? 1 : activeCaseStudyIndex}
+                        pv={latestPt.pv}
+                        sp={latestPt.sp}
+                        u={latestPt.u}
+                        pv2={latestPt.pv2}
+                        disturbance={plantDrain}
+                        lang={lang}
+                      />
+                    </div>
+                  ) : (
+                    /* Modules 1 to 12: Dual Equipment Schematic & ISA-5.1 Flowsheet */
+                    <div className="grid grid-cols-1 gap-3.5">
+                      <EquipmentVisualizer
+                        type={currentModule.play.equipmentType}
+                        levelPct={latestPt.pv}
+                        targetSP={latestPt.sp}
+                        valveOpeningPct={latestPt.u}
+                        disturbanceFlow={plantDrain}
+                        activeFeature={activeFeature}
+                        lang={lang}
+                      />
+
+                      <BlockDiagramCanvas
+                        graph={graph}
+                        activeSignals={activeSignals}
+                        onUpdateGraph={(newG) => {
+                          setGraph(newG);
+                          if (engineRef.current) engineRef.current.setGraph(newG);
+                        }}
+                        activeFeature={activeFeature}
+                        allowWiring={currentModule.id === 'm3'}
+                        lang={lang}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Docked Consolidated Control Surface */}
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2 text-xs">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-cyan-600" />
+                      {isAr ? 'لوحة التحكم وضبط البارامترات:' : 'Consolidated Process Controls:'}
                     </span>
 
-                    {/* Module 4 Sweep Kc button */}
                     {currentModule.play.allowSweepKc && (
                       <button
                         onClick={handleSweepKc}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/60 font-semibold text-xs transition-colors shadow-sm"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold text-xs transition-colors shadow-sm"
                       >
-                        <RefreshCw className="w-3 h-3" />
-                        <span>{isAr ? 'مسح استجابات Kc المتعددة' : 'Sweep Kc Family of Curves'}</span>
+                        <RefreshCw className="w-3 h-3 text-indigo-600" />
+                        <span>{isAr ? 'مسح استجابات Kc المتعددة' : 'Sweep Kc Curves'}</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {currentModule.play.controlsExposed.map((ctrl) => {
                       const node = graph.nodes.find((n) => n.id === ctrl.blockId);
-                      const currentVal = (node?.config as Record<string, any> | undefined)?.[ctrl.property] ?? ctrl.min;
+                      const currentVal = ctrl.id === 'case-selector' 
+                        ? activeCaseStudyIndex 
+                        : ((node?.config as Record<string, any> | undefined)?.[ctrl.property] ?? ctrl.min);
 
                       if (ctrl.controlType === 'toggle') {
                         const isChecked = !!currentVal;
                         return (
-                          <div key={ctrl.id} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs flex items-center justify-between">
-                            <span className="text-slate-300 font-medium">
+                          <div key={ctrl.id} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between shadow-xs">
+                            <span className="text-slate-700 font-medium">
                               {isAr ? ctrl.labelAr : ctrl.labelEn}
                             </span>
                             <button
                               onClick={() => handleUpdateControl(ctrl, !isChecked)}
                               className={`px-3 py-1 rounded-lg font-mono font-bold text-[11px] border transition-colors ${
                                 isChecked
-                                  ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 shadow'
-                                  : 'bg-slate-900 border-slate-700 text-slate-400'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs'
+                                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                               }`}
                             >
                               {isChecked ? (isAr ? 'مُفعّل' : 'ON') : (isAr ? 'معطّل' : 'OFF')}
@@ -634,8 +1154,8 @@ export default function App() {
 
                       if (ctrl.controlType === 'select' && ctrl.options) {
                         return (
-                          <div key={ctrl.id} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs space-y-1.5">
-                            <span className="text-slate-300 font-medium block">
+                          <div key={ctrl.id} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs space-y-1.5 shadow-xs">
+                            <span className="text-slate-700 font-medium block">
                               {isAr ? ctrl.labelAr : ctrl.labelEn}
                             </span>
                             <div className="flex gap-1.5">
@@ -645,8 +1165,8 @@ export default function App() {
                                   onClick={() => handleUpdateControl(ctrl, opt.value)}
                                   className={`flex-1 py-1 rounded font-mono text-[10px] font-bold border transition-colors ${
                                     currentVal === opt.value
-                                      ? 'bg-cyan-600 border-cyan-400 text-white'
-                                      : 'bg-slate-900 border-slate-700 text-slate-400'
+                                      ? 'bg-cyan-600 border-cyan-500 text-white'
+                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                                   }`}
                                 >
                                   {isAr ? opt.labelAr : opt.labelEn}
@@ -658,12 +1178,12 @@ export default function App() {
                       }
 
                       return (
-                        <div key={ctrl.id} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-slate-300 font-medium">
+                        <div key={ctrl.id} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs shadow-xs">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-slate-700 font-medium">
                               {isAr ? ctrl.labelAr : ctrl.labelEn}
                             </span>
-                            <span className="font-mono font-bold text-cyan-300 text-[11px]">
+                            <span className="font-mono font-bold text-cyan-700 text-[11px]">
                               {typeof currentVal === 'number' ? currentVal.toFixed(1) : currentVal} {ctrl.unit}
                             </span>
                           </div>
@@ -682,7 +1202,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Scope Chart */}
+                {/* Section 3: Digital Oscilloscope Scope Chart */}
                 <ScopeChart
                   history={history}
                   isRunning={isRunning}
@@ -711,7 +1231,8 @@ export default function App() {
                   }
                 />
 
-                {/* Metrics Panel for Module 8 */}
+                {/* Section 4: Specialized Docked Analyzers */}
+                {/* Module 8 Relay Autotuner & Metrics */}
                 {currentModule.id === 'm8' && (
                   <MetricsPanel
                     metrics={challengeMetrics}
@@ -725,116 +1246,43 @@ export default function App() {
 
                 {/* Module 9 Stability & Frequency Domain Analyzers */}
                 {currentModule.id === 'm9' && (
-                  <div className="space-y-4">
-                    <BodeViewer
-                      analysis={challengeMetrics.bodeAnalysis}
-                      activeFeature={activeFeature}
-                      lang={lang}
-                    />
-                    <RootLocusViewer
-                      analysis={challengeMetrics.rootLocusAnalysis}
-                      activeFeature={activeFeature}
-                      lang={lang}
-                    />
+                  <div className="space-y-3.5 pt-1 border-t border-slate-200">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                      <Compass className="w-4 h-4 text-cyan-600" />
+                      <span>{isAr ? 'تحليلات الاستقرار والتردد المتقدمة (Frequency & Root Locus):' : 'Advanced Stability & S-Plane Analyzers:'}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      <BodeViewer
+                        analysis={challengeMetrics.bodeAnalysis}
+                        activeFeature={activeFeature}
+                        lang={lang}
+                      />
+                      <RootLocusViewer
+                        analysis={challengeMetrics.rootLocusAnalysis}
+                        activeFeature={activeFeature}
+                        lang={lang}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {/* Module 12 Multivariable Bristol RGA & Decoupling Analyzer */}
                 {currentModule.id === 'm12' && (
-                  <RgaMatrixViewer
-                    analysis={challengeMetrics.rgaAnalysis}
-                    gains={{
-                      k11: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k11 ?? 12.8,
-                      k12: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k12 ?? -18.9,
-                      k21: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k21 ?? 6.6,
-                      k22: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k22 ?? -19.4,
-                    }}
-                    decouplerEnabled={!!graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.decouplerEnabled}
-                    onToggleDecoupler={handleToggleDecoupler}
-                    activeFeature={activeFeature}
-                    lang={lang}
-                  />
-                )}
-              </div>
-
-              {/* Right Panel (Cols 9 to 12): Guided Steps & Prove Challenges */}
-              <div className="lg:col-span-4 space-y-3">
-                {/* Tab Switcher */}
-                <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800">
-                  <button
-                    onClick={() => setRightTab('steps')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      rightTab === 'steps' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {isAr ? 'الخطوات والإرشاد' : '1. Guided Steps'}
-                  </button>
-                  <button
-                    onClick={() => setRightTab('prove')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      rightTab === 'prove'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <span>{isAr ? '2. تحدي الإثبات' : '2. Prove Challenge'}</span>
-                    {(moduleScores[currentModuleId] || 0) >= 70 && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setRightTab('metrics')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      rightTab === 'metrics'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>{isAr ? 'المقاييس' : 'Metrics'}</span>
-                  </button>
-                </div>
-
-                {rightTab === 'steps' && (
-                  <GuidedStepsPanel module={currentModule} lang={lang} />
-                )}
-
-                {rightTab === 'prove' && (
-                  <ProveChallengePanel
-                    module={currentModule}
-                    score={challengeScore}
-                    isChallengeRunning={isChallengeRunning}
-                    challengeTimeLeft={challengeTimeLeft}
-                    onStartChallenge={handleStartChallenge}
-                    onStopChallenge={handleStopChallenge}
-                    onUnlockNext={() => {
-                      const nextModNum = currentModule.number + 1;
-                      const nextModKey = `m${nextModNum}`;
-                      if (MODULE_SPECS[nextModKey]) {
-                        handleSelectModule(nextModKey);
-                      }
-                    }}
-                    currentMetrics={challengeMetrics}
-                    mysteryInputs={mysteryInputs}
-                    onUpdateMysteryInputs={setMysteryInputs}
-                    onSubmitMysteryGuesses={handleValidateMysteryGuesses}
-                    mysteryScoreResult={mysteryResult}
-                    activeGauntletPlantIndex={activeGauntletPlantIndex}
-                    onSelectGauntletPlant={handleSelectGauntletPlant}
-                    gauntletScores={gauntletScores}
-                    lang={lang}
-                  />
-                )}
-
-                {rightTab === 'metrics' && (
-                  <MetricsPanel
-                    metrics={challengeMetrics}
-                    autotuneState={autotuneStatus}
-                    onStartAutotune={() => engineRef.current?.startAutotune()}
-                    onStopAutotune={() => engineRef.current?.stopAutotune()}
-                    onApplyTuning={handleApplyTuning}
-                    lang={lang}
-                  />
+                  <div className="space-y-3 pt-1 border-t border-slate-200">
+                    <RgaMatrixViewer
+                      analysis={challengeMetrics.rgaAnalysis}
+                      gains={{
+                        k11: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k11 ?? 12.8,
+                        k12: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k12 ?? -18.9,
+                        k21: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k21 ?? 6.6,
+                        k22: graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.k22 ?? -19.4,
+                      }}
+                      decouplerEnabled={!!graph.nodes.find((n) => n.type === 'MIMOPlant')?.config.decouplerEnabled}
+                      onToggleDecoupler={handleToggleDecoupler}
+                      activeFeature={activeFeature}
+                      lang={lang}
+                    />
+                  </div>
                 )}
               </div>
             </div>
@@ -853,6 +1301,20 @@ export default function App() {
         lang={lang}
       />
 
+      {/* Mastery Dashboard & Certificate Generator Modal */}
+      <MasteryDashboardModal
+        isOpen={isMasteryOpen}
+        onClose={() => setIsMasteryOpen(false)}
+        moduleScores={moduleScores}
+        unlockedModules={unlockedModules}
+        onImportProgress={(newScores, newUnlocked) => {
+          setModuleScores(newScores);
+          setUnlockedModules(newUnlocked);
+          localStorage.setItem('bigp_scores', JSON.stringify(newScores));
+          localStorage.setItem('bigp_unlocked', JSON.stringify(newUnlocked));
+        }}
+        lang={lang}
+      />
       {/* Bioscience & Science Lab Modal */}
       <BioprocessModal
         isOpen={isBioprocessOpen}

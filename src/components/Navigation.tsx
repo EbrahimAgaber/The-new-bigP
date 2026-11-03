@@ -1,7 +1,6 @@
 /**
- * Top Navigation Bar for bigp
- * Features: Brand logo, Academy vs Studio mode toggle, Module drawer trigger,
- * Bioprocess & Science Lab launcher, Language toggle (EN / AR)
+ * Top Navigation Bar for bigp: Process Control from Zero to Expert
+ * Clean, high-contrast engineering light theme.
  */
 
 import React from 'react';
@@ -9,10 +8,11 @@ import {
   Compass,
   Layers,
   FlaskConical,
-  RotateCcw,
   BookOpen,
   Languages,
-  CheckCircle2,
+  Award,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -25,6 +25,7 @@ interface NavigationProps {
   moduleScores: Record<string, number>;
   onOpenRoadmap: () => void;
   onOpenBioprocessModal: () => void;
+  onOpenMasteryModal?: () => void;
   onResetProgress: () => void;
 }
 
@@ -38,113 +39,123 @@ export const Navigation: React.FC<NavigationProps> = ({
   moduleScores,
   onOpenRoadmap,
   onOpenBioprocessModal,
+  onOpenMasteryModal,
   onResetProgress,
 }) => {
   const isAr = lang === 'ar';
-
   const completedCount = Object.keys(moduleScores).filter((k) => (moduleScores[k] || 0) >= 70).length;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-slate-200">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        {/* Brand & Title */}
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 transition-all shadow-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        {/* Brand & Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyan-600 via-sky-500 to-emerald-400 p-[2px] shadow-lg shadow-cyan-950/50">
-              <div className="w-full h-full bg-slate-950 rounded-[7px] flex items-center justify-center">
-                <span className="font-mono font-black text-lg bg-gradient-to-r from-cyan-400 to-emerald-300 bg-clip-text text-transparent">
+          <div className="relative group cursor-pointer" onClick={onOpenRoadmap}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 via-sky-600 to-blue-600 p-[1.5px] shadow-sm group-hover:shadow-md transition-all duration-300">
+              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                <span className="font-mono font-black text-xl text-cyan-700">
                   p
                 </span>
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-white text-lg">bigp</span>
-                <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
-                  {isAr ? 'أكاديمية التحكم' : 'Control Academy'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
-                {isAr ? 'هندسة التحكم من الصفر للاحتراف — د. إبراهيم' : 'Process Control from Zero to Expert'}
-              </p>
+            <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-lg text-slate-900 tracking-tight flex items-center gap-1.5">
+                big<span className="text-cyan-600 font-mono">p</span>
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-md bg-cyan-50 text-cyan-700 border border-cyan-200">
+                {isAr ? 'أكاديمية التحكم' : 'Process Control'}
+              </span>
             </div>
+            <p className="text-[11px] text-slate-500 font-medium hidden md:block">
+              {isAr ? 'من الصفر إلى الاحتراف — معمل المحاكاة التفاعلي' : 'Zero to Expert — Interactive Simulation Suite'}
+            </p>
           </div>
         </div>
 
-        {/* Center: Mode Switcher */}
-        <div className="flex items-center bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+        {/* Center: Mode Switcher (Segmented Pill) */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
             onClick={() => onModeChange('academy')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
               mode === 'academy'
-                ? 'bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-md shadow-cyan-950'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
-            <Compass className="w-3.5 h-3.5" />
-            <span>{isAr ? 'نمط الأكاديمية' : 'Academy Mode'}</span>
+            <Compass className="w-3.5 h-3.5 text-cyan-600" />
+            <span>{isAr ? 'منهج الأكاديمية' : 'Academy'}</span>
           </button>
           <button
             onClick={() => onModeChange('studio')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
               mode === 'studio'
-                ? 'bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-md shadow-cyan-950'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white text-cyan-800 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>{isAr ? 'استوديو المحاكاة' : 'Studio Mode'}</span>
+            <Layers className="w-3.5 h-3.5 text-cyan-600" />
+            <span>{isAr ? 'استوديو سيمولينك' : 'Studio'}</span>
           </button>
         </div>
 
-        {/* Right Tools & Toggles */}
+        {/* Right Tools & Actions */}
         <div className="flex items-center gap-2">
-          {/* Module Roadmap Trigger */}
+          {/* Roadmap Trigger */}
           <button
             onClick={onOpenRoadmap}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 text-xs font-medium transition-colors"
-            title={isAr ? 'خارطة المنهج (14 وحدة)' : 'Curriculum Roadmap (14 Modules)'}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold transition-all shadow-xs"
           >
-            <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden md:inline">
-              {isAr ? 'المنهج الدراسي' : 'Curriculum'}
-            </span>
-            <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-mono text-[10px] border border-cyan-800/50">
+            <BookOpen className="w-3.5 h-3.5 text-cyan-600" />
+            <span className="hidden sm:inline">{isAr ? 'المنهج' : 'Roadmap'}</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-cyan-100 text-cyan-800 font-mono text-[10px] font-bold">
               {completedCount}/14
             </span>
           </button>
 
-          {/* Bioscience & Bioprocess Lab */}
+          {/* Mastery Dashboard & Certificate */}
+          {onOpenMasteryModal && (
+            <button
+              onClick={onOpenMasteryModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition-all shadow-xs"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden md:inline">{isAr ? 'الشهادة' : 'Mastery'}</span>
+            </button>
+          )}
+
+          {/* Bioprocess Modal */}
           <button
             onClick={onOpenBioprocessModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/50 text-xs font-medium transition-colors"
-            title={isAr ? 'مختبر العمليات الحيوية والعلوم' : 'Bioprocess & Science Lab'}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold transition-all hidden lg:flex"
+            title={isAr ? 'مختبر التكنولوجيا الحيوية' : 'Bioprocess Lab'}
           >
-            <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden lg:inline">
-              {isAr ? 'العمليات الحيوية' : 'Bioprocess Lab'}
-            </span>
+            <FlaskConical className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isAr ? 'العمليات الحيوية' : 'Bioprocess'}</span>
           </button>
 
-          {/* Language Toggle */}
+          {/* Language Switcher */}
           <button
             onClick={() => onLangChange(lang === 'en' ? 'ar' : 'en')}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 text-xs font-bold transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-bold transition-all"
             title={isAr ? 'Switch to English' : 'التبديل إلى العربية'}
           >
-            <Languages className="w-3.5 h-3.5 text-sky-400" />
-            <span>{isAr ? 'English' : 'عربي'}</span>
+            <Languages className="w-3.5 h-3.5 text-sky-600" />
+            <span>{isAr ? 'EN' : 'عربي'}</span>
           </button>
 
-          {/* Reset progress (small icon) */}
+          {/* Reset progress */}
           <button
             onClick={() => {
               if (window.confirm(isAr ? 'هل تريد إعادة ضبط درجات التحديات وفتح الوحدات؟' : 'Reset module completion and scores?')) {
                 onResetProgress();
               }
             }}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-800/60 transition-colors"
-            title={isAr ? 'إعادة ضبط التقدم' : 'Reset Progress'}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all"
+            title={isAr ? 'إعادة تعيين التقدم' : 'Reset Progress'}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>

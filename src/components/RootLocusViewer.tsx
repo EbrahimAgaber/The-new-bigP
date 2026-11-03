@@ -24,7 +24,7 @@ export const RootLocusViewer: React.FC<RootLocusViewerProps> = ({
 
   if (!analysis || !analysis.poles || analysis.poles.length === 0) {
     return (
-      <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 text-center text-slate-400 text-xs">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-slate-500 text-xs">
         {isAr ? 'جاري حساب المسار الجذري (Root Locus)...' : 'Computing Root Locus in the complex s-plane...'}
       </div>
     );
@@ -75,22 +75,22 @@ export const RootLocusViewer: React.FC<RootLocusViewerProps> = ({
 
   return (
     <div
-      className={`bg-slate-900/90 rounded-2xl border transition-all ${
-        isHighlighted ? 'border-amber-400/80 shadow-lg shadow-amber-500/20' : 'border-slate-800'
+      className={`bg-white rounded-2xl border transition-all ${
+        isHighlighted ? 'border-amber-400/80 shadow-lg shadow-amber-500/20' : 'border-slate-200'
       } p-4 shadow-lg flex flex-col justify-between`}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 text-xs">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
             <Crosshair className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-xs flex items-center gap-2">
+            <h3 className="font-bold text-slate-900 text-xs flex items-center gap-2">
               {isAr ? 'المسار الجذري في المستوى المركب (s-Plane)' : 'Root Locus Closed-Loop Poles'}
               {stabilityBadge}
             </h3>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-500">
               {isAr ? '1 + L(s) = 0 مع تقريب بادي لتأخير الزمن' : '1 + L(s) = 0 via 1st-order Padé approximation'}
             </p>
           </div>
@@ -98,15 +98,15 @@ export const RootLocusViewer: React.FC<RootLocusViewerProps> = ({
 
         {/* Live Metrics HUD */}
         <div className="flex items-center gap-2 font-mono text-[11px]">
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800 text-center">
-            <span className="text-slate-400 text-[9px] block">{isAr ? 'معامل التخميد (ζ)' : 'Damping Ratio (ζ)'}</span>
-            <span className="font-bold text-amber-300">
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200 text-center">
+            <span className="text-slate-500 text-[9px] block">{isAr ? 'معامل التخميد (ζ)' : 'Damping Ratio (ζ)'}</span>
+            <span className="font-bold text-amber-800">
               {dampingRatio !== undefined ? dampingRatio : '—'}
             </span>
           </div>
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800 text-center">
-            <span className="text-slate-400 text-[9px] block">{isAr ? 'التردد الطبيعي (ωn)' : 'Natural Freq (ωn)'}</span>
-            <span className="font-bold text-cyan-300">
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200 text-center">
+            <span className="text-slate-500 text-[9px] block">{isAr ? 'التردد الطبيعي (ωn)' : 'Natural Freq (ωn)'}</span>
+            <span className="font-bold text-sky-700">
               {naturalFrequency !== undefined ? `${naturalFrequency} r/s` : '—'}
             </span>
           </div>
@@ -117,7 +117,7 @@ export const RootLocusViewer: React.FC<RootLocusViewerProps> = ({
       <div className="relative mt-2 flex justify-center">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full max-w-full h-auto bg-slate-950 rounded-xl border border-slate-800/80"
+          className="w-full max-w-full h-auto bg-slate-50 rounded-xl border border-slate-200"
         >
           <defs>
             {/* Left-Half Plane Gradient (Stable) */}
@@ -328,13 +328,13 @@ export const RootLocusViewer: React.FC<RootLocusViewerProps> = ({
       </div>
 
       {/* Explanatory Intuition Footer */}
-      <div className="mt-3 bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+      <div className="mt-3 bg-slate-50/60 p-2 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
         <span>
           {isAr
             ? '💡 زيادة الكسب Kc تدفع الأقطاب يميناً. عبورها محور jω يسبب اهتزازات متصاعدة غير مستقرة.'
             : '💡 Increasing Kc pushes poles rightward. Crossing the jω axis causes unbounded runaway oscillations.'}
         </span>
-        <span className="font-mono text-[10px] text-slate-400">
+        <span className="font-mono text-[10px] text-slate-500">
           Re(s) {poles.map((p) => p.real).join(', ')}
         </span>
       </div>

@@ -1,7 +1,6 @@
 /**
  * Module Roadmap Drawer (bigp 14-Module Curriculum Navigation)
- * Shows Part A through Part E, completion scores, lock/unlock badges,
- * and quick-switch access.
+ * High-end aerospace flight map design with part grouping, scores, and lock badges.
  */
 
 import React from 'react';
@@ -32,129 +31,111 @@ export const ModuleRoadmapDrawer: React.FC<ModuleRoadmapDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
       {/* Backdrop */}
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Drawer content */}
-      <div className="relative z-10 w-full max-w-md h-full bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col justify-between overflow-hidden">
+      <div className="relative z-10 w-full max-w-md h-full bg-slate-50 border-l border-slate-200 shadow-2xl flex flex-col justify-between overflow-hidden">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-600">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-extrabold text-slate-900">
                 {isAr ? 'خارطة طريق المنهج (14 وحدة)' : 'Curriculum Roadmap'}
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {isAr ? 'من الصفر إلى الاحتراف في هندسة التحكم' : 'Process Control from Zero to Expert'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Roadmap Parts and Modules List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
+        {/* Modules List */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
           {CURRICULUM_PARTS.map((part) => (
             <div key={part.id} className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
-                  {isAr ? part.titleAr : part.titleEn}
-                </h4>
+              <div className="text-[11px] font-bold tracking-wider uppercase text-cyan-800 font-mono flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-600" />
+                <span>{isAr ? part.titleAr : part.titleEn}</span>
               </div>
 
               <div className="space-y-2">
-                {part.modules.map((mId) => {
-                  const meta = ROADMAP_MODULES_METADATA[mId];
+                {part.modules.map((modId) => {
+                  const meta = ROADMAP_MODULES_METADATA[modId];
                   if (!meta) return null;
 
-                  const isUnlocked = unlockedModules.includes(mId);
-                  const isCurrent = currentModuleId === mId;
-                  const score = moduleScores[mId] || 0;
-                  const isPassed = score >= 70;
+                  const isUnlocked = unlockedModules.includes(modId);
+                  const isCurrent = currentModuleId === modId;
+                  const score = moduleScores[modId];
+                  const isCompleted = score !== undefined && score >= 70;
 
                   return (
-                    <div
-                      key={mId}
+                    <button
+                      key={modId}
+                      disabled={!isUnlocked}
                       onClick={() => {
-                        if (isUnlocked && meta.isPlayable) {
-                          onSelectModule(mId);
-                          onClose();
-                        }
+                        onSelectModule(modId);
+                        onClose();
                       }}
-                      className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                      className={`w-full p-3.5 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between gap-3 ${
                         isCurrent
-                          ? 'bg-cyan-950/60 border-cyan-500/80 shadow-md shadow-cyan-950'
-                          : isUnlocked && meta.isPlayable
-                          ? 'bg-slate-950/70 border-slate-800 hover:border-slate-600 hover:bg-slate-850 cursor-pointer'
-                          : 'bg-slate-950/30 border-slate-900 opacity-60 cursor-not-allowed'
+                          ? 'bg-sky-50/60 border-cyan-400 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-400/30'
+                          : isUnlocked
+                          ? 'bg-white/60 border-slate-200 hover:bg-white hover:border-slate-300 text-slate-700'
+                          : 'bg-slate-50/40 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        {/* Number badge or Lock */}
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-                            isCurrent
-                              ? 'bg-cyan-500 text-slate-950'
-                              : isPassed
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                              : isUnlocked && meta.isPlayable
-                              ? 'bg-slate-800 text-slate-300'
-                              : 'bg-slate-900 text-slate-600 border border-slate-800'
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
+                            isCompleted
+                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                              : isCurrent
+                              ? 'bg-cyan-500/20 text-sky-700 border border-cyan-500/40'
+                              : isUnlocked
+                              ? 'bg-slate-100 text-slate-500 border border-slate-300'
+                              : 'bg-slate-100 text-slate-400 border border-slate-200'
                           }`}
                         >
-                          {!isUnlocked ? (
-                            <Lock className="w-3.5 h-3.5" />
-                          ) : isPassed ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          ) : (
-                            meta.number
-                          )}
+                          {meta.number}
                         </div>
 
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-white">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs truncate text-slate-900">
                               {isAr ? meta.titleAr : meta.titleEn}
                             </span>
-                            {meta.isPlayable && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-sky-950 text-sky-400 font-mono border border-sky-800/40">
-                                {isAr ? 'متاح للعب' : 'Playable'}
-                              </span>
-                            )}
                           </div>
-                          <p className="text-[11px] text-slate-400 line-clamp-1">
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
                             {isAr ? meta.subtitleAr : meta.subtitleEn}
                           </p>
                         </div>
                       </div>
 
-                      {/* Right: Score badge or locked icon */}
-                      <div className="shrink-0 flex items-center gap-2">
-                        {score > 0 && (
-                          <span
-                            className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold ${
-                              isPassed
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                : 'bg-amber-950 text-amber-300 border border-amber-800'
-                            }`}
-                          >
-                            {Math.round(score)}%
-                          </span>
-                        )}
-                        {isUnlocked && meta.isPlayable && (
-                          <ChevronRight className="w-4 h-4 text-slate-500" />
+                      {/* Right status icon */}
+                      <div className="shrink-0 flex items-center gap-2 font-mono">
+                        {isCompleted ? (
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>{score}%</span>
+                          </div>
+                        ) : !isUnlocked ? (
+                          <Lock className="w-4 h-4 text-slate-600" />
+                        ) : (
+                          <ChevronRight className={`w-4 h-4 ${isCurrent ? 'text-cyan-700' : 'text-slate-500'}`} />
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -162,10 +143,10 @@ export const ModuleRoadmapDrawer: React.FC<ModuleRoadmapDrawerProps> = ({
           ))}
         </div>
 
-        {/* Footer info */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 text-xs text-slate-400 flex items-center justify-between">
-          <span>{isAr ? 'احصل على 70% في التحدي لفتح الوحدة التالية' : 'Score ≥70% on Prove Challenge to unlock'}</span>
-          <Award className="w-4 h-4 text-amber-400" />
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-200 bg-slate-50/60 flex items-center justify-between text-xs text-slate-500 font-mono">
+          <span>{unlockedModules.length} / 14 Unlocked</span>
+          <span className="text-cyan-700 font-bold">bigp v2.0</span>
         </div>
       </div>
     </div>

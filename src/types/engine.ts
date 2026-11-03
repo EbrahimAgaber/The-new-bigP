@@ -35,7 +35,12 @@ export type BlockType =
   | 'Selector'
   | 'MIMOPlant'
   | 'RGACalculator'
-  | 'Decoupler';
+  | 'Decoupler'
+  // Milestone 4 Industrial Plant Blocks
+  | 'CSTRPlant'
+  | 'HeatExchangerPlant'
+  | 'DistillationColumnPlant'
+  | 'BoilerDrumPlant';
 
 export interface PortDefinition {
   id: string;
@@ -138,6 +143,12 @@ export interface BlockConfig {
   // Milestone 3: Ratio
   ratioTarget?: number;       // R_sp = F2 / F1
 
+  // Milestone 3: Cascade
+  outerTi?: number;
+  innerTi?: number;
+  primaryKc?: number;
+  secondaryKc?: number;
+
   // Milestone 3: SplitRange
   splitPoint?: number;        // e.g. 50%
   coolValveMin?: number;
@@ -159,6 +170,19 @@ export interface BlockConfig {
   tau22?: number;
   mimoPairing?: 'straight' | 'cross'; // straight: u1->y1, u2->y2; cross: u1->y2, u2->y1
   decouplerEnabled?: boolean;
+
+  // Milestone 4: Industrial Plant Blocks
+  feedTemp?: number;
+  coolJacketFlow?: number;
+  processFluidFlow?: number;
+  steamPressure?: number;
+  refluxFlow?: number;
+  steamBoilupDuty?: number;
+  feedComp?: number;
+  steamHeaderDemand?: number;
+  feedwaterFlow?: number;
+  drumLevel?: number;
+  inverseTauZ?: number;
 }
 
 export interface BlockNode {
@@ -193,6 +217,17 @@ export interface BlockState {
   ringIndex?: number;
   level?: number;
   onOffState?: boolean;
+
+  // Industrial Plants State (Milestone 4)
+  reactorTemp?: number;
+  jacketTemp?: number;
+  hexOutletTemp?: number;
+  hexDeadTimeBuffer?: number[];
+  distillatePurity?: number;
+  bottomsPurity?: number;
+  boilerLevel?: number;
+  boilerSwellState?: number;
+  boilerIntLevel?: number;
 
   // Industrial PID term breakdowns
   up?: number;

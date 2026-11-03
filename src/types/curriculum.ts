@@ -122,7 +122,12 @@ export interface ProveChallengeSpec {
     | 'stabilityPrediction'
     | 'feedforwardIAEReduction'
     | 'cascadeTuningSequence'
-    | 'mimoDecoupling';
+    | 'mimoDecoupling'
+    | 'cstrExothermicRunaway'
+    | 'heatExchangerFeedforward'
+    | 'distillationPurityMimo'
+    | 'boilerDrumShrinkSwell'
+    | 'unseenPlantCapstone';
   targetSP: number;
   toleranceBandPct: number; // e.g. 5 for +/- 5%
   durationSeconds: number;
@@ -191,6 +196,20 @@ export interface ProveChallengeSpec {
     maxSettlingTime: number;
   };
   // For M12 MIMO Challenge
+  caseStudyGoal?: {
+    caseIndex: 1 | 2 | 3 | 4;
+    maxTempK?: number;
+    targetTempK?: number;
+    outletTempTol?: number;
+    minIAEReductionPct?: number;
+    minPurityPct?: number;
+    minDrumLevel?: number;
+    maxDrumLevel?: number;
+  };
+  capstoneGoal?: {
+    unseenSeed?: number;
+    minPassingScore: number;
+  };
   mimoGoal?: {
     correctPairing: '11_22' | '12_21';
     requireDecoupler: boolean;

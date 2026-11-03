@@ -1,20 +1,12 @@
 /**
- * Scope Chart (bigp Milestones 0, 1 & 2 Live Multi-Trace Strip Chart)
- * High-performance HTML5 Canvas renderer with interactive visual overlays:
- * - Module 1: Error gap bracket
- * - Module 2: 63.2% Tau fitting tool & dead-time Theta bracket
- * - Module 4: Steady-State Offset gap shading & Kc sweep family
- * - Module 5: Integral Area Shading (∫ e dt) in translucent emerald/crimson
- * - Module 6: Derivative Slope Vector (tangent arrow & damping brake vector)
- * - Module 7: Windup Ghost Trace (requested u_raw vs actual clamped u)
- * - Module 8: Metrics Callipers (tr, ts ±2% tunnel, Overshoot %, IAE shading)
- * - Live PID Term Breakdown Stacked Bar Meter (uP, uI, uD)
+ * Scope Chart (bigp Milestones 0-4 Live Multi-Trace Digital Strip Chart)
+ * Clean, high-contrast engineering light theme with crisp traces and tooltips.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ScopeDataPoint } from '../types/engine';
 import { VisualFeatureId } from '../types/curriculum';
-import { Play, Pause, RotateCcw, Clock, Eye, Layers, AlertCircle, TrendingUp, BarChart2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, AlertCircle } from 'lucide-react';
 
 interface SweepCurve {
   label: string;
@@ -60,7 +52,6 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
   const [showPV, setShowPV] = useState(true);
   const [showU, setShowU] = useState(true);
   const [showRawU, setShowRawU] = useState(true);
-  const [showError, setShowError] = useState(false);
   const [hoveredPoint, setHoveredPoint] = useState<ScopeDataPoint | null>(null);
 
   // Render chart on canvas
@@ -87,8 +78,8 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
     const plotW = width - padLeft - padRight;
     const plotH = height - padTop - padBottom;
 
-    // Background
-    ctx.fillStyle = '#090d16';
+    // Clean engineering graph paper background
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     // Coordinates
@@ -103,7 +94,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
     const yToPx = (val: number) => padTop + plotH - ((val - yMin) / (yMax - yMin)) * plotH;
 
     // 1. Grid lines
-    ctx.strokeStyle = '#1e293b';
+    ctx.strokeStyle = '#f1f5f9';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let yVal = 0; yVal <= 100; yVal += 25) {
@@ -118,6 +109,11 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
       ctx.lineTo(xPos, padTop + plotH);
     }
     ctx.stroke();
+
+    // Border line around plot
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padLeft, padTop, plotW, plotH);
 
     // 2. Axis labels
     ctx.fillStyle = '#64748b';
@@ -140,7 +136,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
       const botY = yToPx(Math.max(0, targetSP - bandHalf));
       ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
       ctx.fillRect(padLeft, topY, plotW, botY - topY);
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
       ctx.setLineDash([4, 4]);
       ctx.strokeRect(padLeft, topY, plotW, botY - topY);
       ctx.setLineDash([]);
@@ -148,9 +144,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
 
     const visiblePoints = history.filter((p) => p.time >= startTime - 0.2);
 
-    // ==========================================
     // OVERLAY: Module 5 Integral Area Shading (∫ e dt)
-    // ==========================================
     if ((activeFeature === 'integralArea' || moduleId === 'm5') && visiblePoints.length > 2) {
       for (let i = 0; i < visiblePoints.length - 1; i++) {
         const p1 = visiblePoints[i];
@@ -162,9 +156,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         const pvY1 = yToPx(p1.pv);
         const pvY2 = yToPx(p2.pv);
 
-        const isPositiveErr = p1.error >= 0;
-        ctx.fillStyle = isPositiveErr ? 'rgba(16, 185, 129, 0.22)' : 'rgba(239, 68, 68, 0.22)';
-
+        ctx.fillStyle = p1.error >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)';
         ctx.beginPath();
         ctx.moveTo(x1, spY1);
         ctx.lineTo(x2, spY2);
@@ -173,89 +165,37 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         ctx.closePath();
         ctx.fill();
       }
+    }
 
-      // Live Integral Shading Callout Badge
+    // OVERLAY: Module 4 Steady-State Offset Shading
+    if ((activeFeature === 'offsetGap' || moduleId === 'm4') && visiblePoints.length > 1) {
       const lastP = visiblePoints[visiblePoints.length - 1];
-      if (lastP) {
-        ctx.fillStyle = '#059669';
-        const lx = Math.min(padLeft + plotW - 130, xToPx(lastP.time) - 130);
-        const ly = yToPx(lastP.sp) - 10;
-        ctx.fillRect(lx, ly, 125, 18);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px "JetBrains Mono", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(`∫ e dt Memory: uI = ${(lastP.ui ?? 0).toFixed(1)}%`, lx + 5, ly + 12);
-      }
+      const startX = Math.max(padLeft, xToPx(Math.max(startTime, latestTime - 8)));
+      const endX = xToPx(latestTime);
+      const topY = Math.min(yToPx(lastP.sp), yToPx(lastP.pv));
+      const botY = Math.max(yToPx(lastP.sp), yToPx(lastP.pv));
+
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+      ctx.fillRect(startX, topY, endX - startX, botY - topY);
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(startX, topY, endX - startX, botY - topY);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#b45309';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`Offset: ${Math.abs(lastP.error).toFixed(1)}%`, endX - 6, (topY + botY) / 2 + 3);
     }
 
-    // ==========================================
-    // OVERLAY: Module 7 Windup Ghost Area (Requested u_raw vs Clamped u)
-    // ==========================================
-    if ((activeFeature === 'windupGhostTrace' || moduleId === 'm7') && visiblePoints.length > 2) {
-      for (let i = 0; i < visiblePoints.length - 1; i++) {
-        const p1 = visiblePoints[i];
-        const p2 = visiblePoints[i + 1];
-        if (p1.rawU !== undefined && p2.rawU !== undefined) {
-          if (p1.rawU > 100 || p2.rawU > 100 || p1.rawU < 0 || p2.rawU < 0) {
-            const x1 = xToPx(p1.time);
-            const x2 = xToPx(p2.time);
-            const rawY1 = yToPx(p1.rawU);
-            const rawY2 = yToPx(p2.rawU);
-            const clmY1 = yToPx(p1.u);
-            const clmY2 = yToPx(p2.u);
-
-            ctx.fillStyle = 'rgba(244, 63, 94, 0.25)';
-            ctx.beginPath();
-            ctx.moveTo(x1, clmY1);
-            ctx.lineTo(x2, clmY2);
-            ctx.lineTo(x2, rawY2);
-            ctx.lineTo(x1, rawY1);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-      }
-    }
-
-    // ==========================================
-    // OVERLAY: Multi-Trace Sweep Curves (Module 4)
-    // ==========================================
-    if (sweepCurves && sweepCurves.length > 0) {
-      sweepCurves.forEach((curve) => {
-        const pts = curve.data.filter((p) => p.time >= startTime - 0.2);
-        if (pts.length < 2) return;
-
-        ctx.strokeStyle = curve.color;
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        pts.forEach((p, idx) => {
-          const x = xToPx(p.time);
-          const y = yToPx(p.pv);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-
-        const lastPt = pts[pts.length - 1];
-        if (lastPt) {
-          ctx.fillStyle = curve.color;
-          ctx.font = '9px monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText(`Kc=${curve.kc}`, xToPx(lastPt.time) + 4, yToPx(lastPt.pv) + 3);
-        }
-      });
-    }
-
-    // ==========================================
-    // PRIMARY TRACES (SP, PV, u, rawU, e)
-    // ==========================================
+    // RENDER MAIN TRACES
     if (visiblePoints.length > 1) {
-      // Windup Ghost Trace: Requested Output u_raw (Module 7)
-      if (showRawU && (moduleId === 'm7' || activeFeature === 'windupGhostTrace')) {
+      // Windup Ghost Trace (rawU)
+      if (showRawU && (activeFeature === 'windupGhostTrace' || moduleId === 'm7')) {
         ctx.strokeStyle = '#f43f5e';
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
         visiblePoints.forEach((p, idx) => {
           if (p.rawU !== undefined) {
@@ -271,7 +211,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
 
       // Controller Output u (purple solid)
       if (showU) {
-        ctx.strokeStyle = '#a855f7';
+        ctx.strokeStyle = '#9333ea';
         ctx.lineWidth = 2.0;
         ctx.beginPath();
         visiblePoints.forEach((p, idx) => {
@@ -283,23 +223,9 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         ctx.stroke();
       }
 
-      // Error e (yellow)
-      if (showError) {
-        ctx.strokeStyle = '#eab308';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        visiblePoints.forEach((p, idx) => {
-          const x = xToPx(p.time);
-          const y = yToPx(p.error + 50);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-      }
-
       // Target SP (amber dashed)
       if (showSP) {
-        ctx.strokeStyle = activeFeature === 'spLine' ? '#f59e0b' : '#d97706';
+        ctx.strokeStyle = '#d97706';
         ctx.lineWidth = activeFeature === 'spLine' ? 2.5 : 2;
         ctx.setLineDash([5, 4]);
         ctx.beginPath();
@@ -313,10 +239,10 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         ctx.setLineDash([]);
       }
 
-      // Process Variable PV (cyan solid)
+      // Process Variable PV (rich deep cyan/teal solid)
       if (showPV) {
-        ctx.strokeStyle = activeFeature === 'pvLine' ? '#38bdf8' : '#06b6d4';
-        ctx.lineWidth = activeFeature === 'pvLine' ? 3 : 2.4;
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = activeFeature === 'pvLine' ? 3.5 : 2.5;
         ctx.beginPath();
         visiblePoints.forEach((p, idx) => {
           const x = xToPx(p.time);
@@ -327,11 +253,11 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         ctx.stroke();
       }
 
-      // Secondary PV2 (e.g. Bottoms purity xB in MIMO or slave jacket temp in Cascade)
+      // Secondary PV2
       const hasPV2 = visiblePoints.some((p) => p.pv2 !== undefined);
       if (hasPV2) {
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = '#059669';
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
         visiblePoints.forEach((p, idx) => {
           if (p.pv2 !== undefined) {
@@ -347,7 +273,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
       // Secondary SP2
       const hasSP2 = visiblePoints.some((p) => p.sp2 !== undefined);
       if (hasSP2) {
-        ctx.strokeStyle = '#34d399';
+        ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 1.8;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -363,10 +289,10 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
         ctx.setLineDash([]);
       }
 
-      // Feedforward Action uFF (Module 10)
+      // Feedforward Action uFF
       const hasUFF = visiblePoints.some((p) => p.uFF !== undefined);
       if (hasUFF) {
-        ctx.strokeStyle = '#818cf8';
+        ctx.strokeStyle = '#4f46e5';
         ctx.lineWidth = 1.8;
         ctx.setLineDash([4, 2]);
         ctx.beginPath();
@@ -383,112 +309,11 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
       }
     }
 
-    // ==========================================
-    // OVERLAY: Module 6 Derivative Tangent Slope Vector (de/dt & Braking Arrow)
-    // ==========================================
-    if ((activeFeature === 'derivativeSlope' || moduleId === 'm6') && visiblePoints.length > 5) {
-      const cur = visiblePoints[visiblePoints.length - 1];
-      const slope = cur.derivativeSlope ?? 0;
-      const cx = xToPx(cur.time);
-      const cy = yToPx(cur.pv);
-
-      // Tangent vector
-      const arrowLen = 35;
-      const angle = Math.atan2(-slope * 2, 20); // inverted y for canvas
-      const endX = cx + arrowLen * Math.cos(angle);
-      const endY = cy + arrowLen * Math.sin(angle);
-
-      // Draw Tangent Arrow
-      ctx.strokeStyle = '#ec4899';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-
-      // Opposite Braking Vector (Damping Force -Td * dPV/dt)
-      const brakeX = cx - arrowLen * 0.8 * Math.cos(angle);
-      const brakeY = cy - arrowLen * 0.8 * Math.sin(angle);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2.0;
-      ctx.setLineDash([2, 2]);
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(brakeX, brakeY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Label
-      ctx.fillStyle = '#ec4899';
-      ctx.font = 'bold 9px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(`Slope: ${slope.toFixed(1)} %/s (uD = ${(cur.ud ?? 0).toFixed(1)}%)`, endX + 4, endY + 2);
-    }
-
-    // ==========================================
-    // OVERLAY: Module 8 Metrics Callipers (tr, ts, Overshoot)
-    // ==========================================
-    if ((activeFeature === 'metricsCallipers' || moduleId === 'm8') && visiblePoints.length > 5) {
-      // Draw ±2% Settling Tunnel
-      const sY1 = yToPx(targetSP * 1.02);
-      const sY2 = yToPx(targetSP * 0.98);
-      ctx.strokeStyle = 'rgba(14, 165, 233, 0.4)';
-      ctx.setLineDash([3, 3]);
-      ctx.strokeRect(padLeft, sY1, plotW, sY2 - sY1);
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = '#0ea5e9';
-      ctx.font = '9px monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText('±2% Settle Band', padLeft + plotW - 4, sY1 - 3);
-    }
-
-    // ==========================================
-    // OVERLAY: 63.2% Tau & Theta Brackets (Module 2)
-    // ==========================================
-    if ((activeFeature === 'tauCrosshair' || moduleId === 'm2') && fopdtParams) {
-      const stepT = fopdtParams.stepTime ?? 3.0;
-      const theta = fopdtParams.theta ?? 2.0;
-      const tau = fopdtParams.tau ?? 5.0;
-      const K = fopdtParams.k ?? 1.5;
-      const deltaU = fopdtParams.stepVal ?? 40;
-      const finalDeltaY = K * deltaU;
-      const val63 = 0.632 * finalDeltaY;
-      const t63 = stepT + theta + tau;
-
-      if (t63 >= startTime && t63 <= endTime) {
-        const x63 = xToPx(t63);
-        const y63 = yToPx(val63);
-
-        ctx.strokeStyle = '#22d3ee';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(padLeft, y63);
-        ctx.lineTo(x63, y63);
-        ctx.lineTo(x63, padTop + plotH);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = '#22d3ee';
-        ctx.beginPath();
-        ctx.arc(x63, y63, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#0891b2';
-        ctx.fillRect(x63 + 6, y63 - 18, 92, 16);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 9px "JetBrains Mono", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(`63.2% (τ=${tau.toFixed(1)}s)`, x63 + 10, y63 - 6);
-      }
-    }
-
-    // Mouse inspection crosshair
+    // Crosshair on hover
     if (hoveredPoint) {
       const hx = xToPx(hoveredPoint.time);
       if (hx >= padLeft && hx <= padLeft + plotW) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
         ctx.beginPath();
@@ -505,7 +330,6 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
     showPV,
     showU,
     showRawU,
-    showError,
     activeFeature,
     targetSP,
     toleranceBandPct,
@@ -550,7 +374,7 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
 
   const currentPt = history.length > 0 ? history[history.length - 1] : null;
 
-  // Compute live term meter percentages (Normalized to 100%)
+  // Compute live term meter percentages
   const up = Math.max(0, currentPt?.up ?? 0);
   const ui = Math.max(0, currentPt?.ui ?? 0);
   const ud = Math.max(0, currentPt?.ud ?? 0);
@@ -560,189 +384,150 @@ export const ScopeChart: React.FC<ScopeChartProps> = ({
   const pctD = Math.max(0, 100 - pctP - pctI);
 
   return (
-    <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 shadow-lg flex flex-col">
+    <div className="panel-card p-4 sm:p-5 flex flex-col space-y-3">
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 text-xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-            <h4 className="font-bold text-white uppercase tracking-wider text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-600 animate-pulse" />
+            <h4 className="font-bold text-slate-900 uppercase tracking-wider text-xs">
               {isAr ? 'راسم الإشارات الرقمي (Strip Scope)' : 'Digital Process Scope'}
             </h4>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950 font-mono text-[11px] text-slate-300 border border-slate-800">
-            <Clock className="w-3 h-3 text-cyan-400" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 font-mono text-[11px] text-slate-700 border border-slate-200">
+            <Clock className="w-3.5 h-3.5 text-cyan-600" />
             <span>t = {currentPt ? currentPt.time.toFixed(1) : '0.0'}s</span>
           </div>
 
           {currentPt?.isSaturated && (
-            <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-mono font-bold text-[10px] border border-rose-800 animate-pulse flex items-center gap-1">
-              <AlertCircle className="w-3 h-3 text-rose-400" />
+            <span className="px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-700 font-mono font-bold text-[10px] border border-rose-200 flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
               <span>{isAr ? 'الصمام متشبع 100%' : 'VALVE SATURATED'}</span>
             </span>
           )}
         </div>
 
         {/* Trace Toggles */}
-        <div className="flex items-center gap-2 text-[11px] font-mono">
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           <button
             onClick={() => setShowSP(!showSP)}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
-              showSP ? 'bg-amber-950/70 border-amber-500/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-500'
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
+              showSP ? 'bg-amber-50 border-amber-300 text-amber-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400'
             }`}
           >
-            <span className="w-2 h-0.5 bg-amber-400 inline-block" />
+            <span className="w-2 h-0.5 bg-amber-500 inline-block" />
             <span>SP</span>
           </button>
           <button
             onClick={() => setShowPV(!showPV)}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
-              showPV ? 'bg-cyan-950/70 border-cyan-500/70 text-cyan-300' : 'bg-slate-950 border-slate-800 text-slate-500'
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
+              showPV ? 'bg-sky-50 border-sky-300 text-sky-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400'
             }`}
           >
-            <span className="w-2 h-0.5 bg-cyan-400 inline-block" />
+            <span className="w-2 h-0.5 bg-sky-600 inline-block" />
             <span>PV</span>
           </button>
           <button
             onClick={() => setShowU(!showU)}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
-              showU ? 'bg-purple-950/70 border-purple-500/70 text-purple-300' : 'bg-slate-950 border-slate-800 text-slate-500'
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
+              showU ? 'bg-purple-50 border-purple-300 text-purple-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400'
             }`}
           >
-            <span className="w-2 h-0.5 bg-purple-400 inline-block" />
+            <span className="w-2 h-0.5 bg-purple-600 inline-block" />
             <span>u</span>
           </button>
           {moduleId === 'm7' && (
             <button
               onClick={() => setShowRawU(!showRawU)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
-                showRawU ? 'bg-rose-950/70 border-rose-500/70 text-rose-300' : 'bg-slate-950 border-slate-800 text-slate-500'
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
+                showRawU ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400'
               }`}
             >
-              <span className="w-2 h-0.5 bg-rose-400 inline-block" />
-              <span>u_raw (Windup)</span>
+              <span>u_raw</span>
             </button>
           )}
-          <button
-            onClick={() => setShowError(!showError)}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
-              showError ? 'bg-yellow-950/70 border-yellow-500/70 text-yellow-300' : 'bg-slate-950 border-slate-800 text-slate-500'
-            }`}
-          >
-            <span className="w-2 h-0.5 bg-yellow-400 inline-block" />
-            <span>e</span>
-          </button>
-        </div>
-
-        {/* Right Tools */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-800 text-[10px] font-mono">
-            {[15, 30, 60].map((sec) => (
-              <button
-                key={sec}
-                onClick={() => setTimeWindow(sec)}
-                className={`px-2 py-0.5 rounded ${
-                  timeWindow === sec ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {sec}s
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onTogglePlay}
-            className={`p-1.5 rounded-lg border font-medium transition-all ${
-              isRunning
-                ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
-                : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20'
-            }`}
-            title={isRunning ? (isAr ? 'إيقاف مؤقت' : 'Pause Simulation') : (isAr ? 'تشغيل' : 'Run Simulation')}
-          >
-            {isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          </button>
-
-          <button
-            onClick={onReset}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors"
-            title={isAr ? 'إعادة ضبط المحاكاة' : 'Reset Scope'}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
 
-      {/* Main Canvas */}
-      <div className="relative w-full h-64 mt-2">
+      {/* Canvas */}
+      <div className="relative w-full h-[260px] sm:h-[300px] rounded-xl overflow-hidden border border-slate-200 bg-white shadow-xs">
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredPoint(null)}
-          className="w-full h-full rounded-xl cursor-crosshair block"
+          className="w-full h-full cursor-crosshair block"
         />
 
+        {/* Hover Tooltip Overlay */}
         {hoveredPoint && (
-          <div className="absolute top-2 right-2 bg-slate-950/90 border border-slate-700 rounded-lg p-2 text-[10px] font-mono shadow-xl backdrop-blur pointer-events-none flex items-center gap-3">
-            <span className="text-slate-400">t: <b className="text-white">{hoveredPoint.time.toFixed(2)}s</b></span>
-            <span className="text-amber-400">SP: <b>{hoveredPoint.sp.toFixed(1)}%</b></span>
-            <span className="text-cyan-400">PV: <b>{hoveredPoint.pv.toFixed(1)}%</b></span>
-            <span className="text-purple-400">u: <b>{hoveredPoint.u.toFixed(1)}%</b></span>
-            {hoveredPoint.rawU !== undefined && (
-              <span className="text-rose-400">u_raw: <b>{hoveredPoint.rawU.toFixed(1)}%</b></span>
-            )}
-            <span className="text-yellow-400">e: <b>{(hoveredPoint.sp - hoveredPoint.pv).toFixed(1)}%</b></span>
+          <div className="absolute top-3 right-3 bg-white/95 border border-slate-200 p-2.5 rounded-xl shadow-lg backdrop-blur-md text-[11px] font-mono space-y-1 z-10 pointer-events-none">
+            <div className="text-slate-500 border-b border-slate-200 pb-1 flex items-center justify-between gap-4">
+              <span>Time</span>
+              <span className="text-slate-900 font-bold">{hoveredPoint.time.toFixed(2)}s</span>
+            </div>
+            <div className="flex justify-between gap-4 text-amber-700">
+              <span>SP:</span>
+              <span className="font-bold">{hoveredPoint.sp.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between gap-4 text-sky-700">
+              <span>PV:</span>
+              <span className="font-bold">{hoveredPoint.pv.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between gap-4 text-purple-700">
+              <span>u:</span>
+              <span className="font-bold">{hoveredPoint.u.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between gap-4 text-slate-700">
+              <span>Error:</span>
+              <span className="font-bold">{hoveredPoint.error.toFixed(1)}%</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Live PID Term Breakdown Meter (uP, uI, uD) */}
-      {showTermMeter && currentPt && (currentPt.up !== undefined || currentPt.ui !== undefined) && (
-        <div className="mt-3 p-2 rounded-xl bg-slate-950/90 border border-slate-800 text-[11px] font-mono space-y-1.5">
-          <div className="flex items-center justify-between text-slate-400 text-[10px]">
-            <span className="flex items-center gap-1">
-              <BarChart2 className="w-3 h-3 text-cyan-400" />
-              {isAr ? 'توزيع جهود التحكم الحالية (uP + uI + uD):' : 'Live PID Term Contributions:'}
-            </span>
-            <div className="flex items-center gap-3">
-              <span className="text-sky-300">P: {(currentPt.up ?? 0).toFixed(1)}%</span>
-              <span className="text-emerald-300">I: {(currentPt.ui ?? 0).toFixed(1)}%</span>
-              <span className="text-pink-300">D: {(currentPt.ud ?? 0).toFixed(1)}%</span>
+      {/* Bottom Controls Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs">
+        <div className="flex items-center gap-2">
+          {/* Play / Pause button */}
+          <button
+            onClick={onTogglePlay}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs ${
+              isRunning
+                ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                : 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+            }`}
+          >
+            {isRunning ? <Pause className="w-3.5 h-3.5 text-amber-700" /> : <Play className="w-3.5 h-3.5 text-emerald-700 fill-emerald-700" />}
+            <span>{isRunning ? (isAr ? 'إيقاف مؤقت' : 'Pause') : (isAr ? 'تشغيل' : 'Run')}</span>
+          </button>
+
+          {/* Reset button */}
+          <button
+            onClick={onReset}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold transition-all"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>{isAr ? 'إعادة ضبط' : 'Reset'}</span>
+          </button>
+        </div>
+
+        {/* Live Term Meter (uP, uI, uD) */}
+        {showTermMeter && (
+          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-[11px] font-mono">
+            <span className="text-slate-500 font-bold px-1">{isAr ? 'مكونات PID:' : 'PID Split:'}</span>
+            <div className="w-24 sm:w-32 h-2.5 bg-slate-200 rounded-full overflow-hidden flex shadow-inner">
+              <div style={{ width: `${pctP}%` }} className="bg-sky-500" title={`P: ${pctP}%`} />
+              <div style={{ width: `${pctI}%` }} className="bg-emerald-500" title={`I: ${pctI}%`} />
+              <div style={{ width: `${pctD}%` }} className="bg-purple-500" title={`D: ${pctD}%`} />
+            </div>
+            <div className="flex gap-1.5 text-[10px]">
+              <span className="text-sky-700 font-bold">P:{pctP}%</span>
+              <span className="text-emerald-700 font-bold">I:{pctI}%</span>
+              <span className="text-purple-700 font-bold">D:{pctD}%</span>
             </div>
           </div>
-          {/* Stacked bar */}
-          <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden flex">
-            <div className="bg-sky-400 transition-all duration-150" style={{ width: `${pctP}%` }} title={`Proportional: ${pctP}%`} />
-            <div className="bg-emerald-400 transition-all duration-150" style={{ width: `${pctI}%` }} title={`Integral: ${pctI}%`} />
-            <div className="bg-pink-400 transition-all duration-150" style={{ width: `${pctD}%` }} title={`Derivative: ${pctD}%`} />
-          </div>
-        </div>
-      )}
-
-      {/* Live Metrics Strip */}
-      <div className="mt-2.5 pt-2 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] font-mono">
-        <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800">
-          <span className="text-slate-400">SP:</span>
-          <span className="text-amber-300 font-bold">{currentPt ? currentPt.sp.toFixed(1) : 0}%</span>
-        </div>
-        <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800">
-          <span className="text-slate-400">PV:</span>
-          <span className="text-cyan-300 font-bold">{currentPt ? currentPt.pv.toFixed(1) : 0}%</span>
-        </div>
-        <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800">
-          <span className="text-slate-400">Error:</span>
-          <span className={`font-bold ${Math.abs(currentPt ? currentPt.sp - currentPt.pv : 0) > 5 ? 'text-yellow-400' : 'text-emerald-400'}`}>
-            {currentPt ? (currentPt.sp - currentPt.pv).toFixed(1) : 0}%
-          </span>
-        </div>
-        <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800">
-          <span className="text-slate-400">Valve u:</span>
-          <span className="text-purple-300 font-bold">{currentPt ? currentPt.u.toFixed(1) : 0}%</span>
-        </div>
-        <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800">
-          <span className="text-slate-400">{isAr ? 'اهتزاز الصمام:' : 'Valve Travel:'}</span>
-          <span className="text-slate-200 font-bold">{currentPt?.valveChatter ?? 0}</span>
-        </div>
+        )}
       </div>
     </div>
   );

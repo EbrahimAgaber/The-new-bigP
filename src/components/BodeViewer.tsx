@@ -27,7 +27,7 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
 
   if (!analysis || !analysis.points || analysis.points.length === 0) {
     return (
-      <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 text-center text-slate-400 text-xs">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-slate-500 text-xs">
         {isAr ? 'جاري حساب استجابة التردد المفتوحة (Bode)...' : 'Computing open-loop frequency response (Bode)...'}
       </div>
     );
@@ -94,21 +94,21 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
   );
 
   return (
-    <div className={`bg-slate-900/90 rounded-2xl border transition-all ${
-      isBodeHighlighted ? 'border-cyan-400/80 shadow-lg shadow-cyan-500/20' : 'border-slate-800'
+    <div className={`bg-white rounded-2xl border transition-all ${
+      isBodeHighlighted ? 'border-cyan-400/80 shadow-lg shadow-cyan-500/20' : 'border-slate-200'
     } p-4 shadow-lg flex flex-col justify-between`}>
       {/* Header with Stability Verdict and Key Metrics */}
-      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-800 gap-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 text-xs">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
             <Waves className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-xs flex items-center gap-2">
+            <h3 className="font-bold text-slate-900 text-xs flex items-center gap-2">
               {isAr ? 'مخطط بودي لاستقرار المنظومة (Bode Plot)' : 'Open-Loop Bode Stability Analyzer'}
               {stabilityBadge}
             </h3>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-500">
               {isAr ? 'L(jω) = Gc(jω)·Gp(jω)e^(-jωθ)' : 'L(jω) = Gc(jω)·Gp(jω)e^(-jωθ)'}
             </p>
           </div>
@@ -116,8 +116,8 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
 
         {/* Live Stability Metrics HUD */}
         <div className="flex items-center gap-3 font-mono text-[11px]">
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">{isAr ? 'هامش الكسب (GM)' : 'Gain Margin (GM)'}</span>
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200">
+            <span className="text-slate-500 text-[10px] block">{isAr ? 'هامش الكسب (GM)' : 'Gain Margin (GM)'}</span>
             <span className={`font-bold ${
               gainMarginDb === undefined || gainMarginDb < 2
                 ? 'text-rose-400'
@@ -129,8 +129,8 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
             </span>
           </div>
 
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">{isAr ? 'هامش الطور (PM)' : 'Phase Margin (PM)'}</span>
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200">
+            <span className="text-slate-500 text-[10px] block">{isAr ? 'هامش الطور (PM)' : 'Phase Margin (PM)'}</span>
             <span className={`font-bold ${
               phaseMarginDeg === undefined || phaseMarginDeg < 20
                 ? 'text-rose-400'
@@ -142,16 +142,16 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
             </span>
           </div>
 
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">{isAr ? 'الكسب الحرج (Ku)' : 'Ultimate Gain (Ku)'}</span>
-            <span className="font-bold text-cyan-300">
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200">
+            <span className="text-slate-500 text-[10px] block">{isAr ? 'الكسب الحرج (Ku)' : 'Ultimate Gain (Ku)'}</span>
+            <span className="font-bold text-sky-700">
               {ultimateGain !== undefined ? ultimateGain : '—'}
             </span>
           </div>
 
-          <div className="bg-slate-950/80 px-2 py-1 rounded border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">{isAr ? 'الدور الحرج (Pu)' : 'Ultimate Period (Pu)'}</span>
-            <span className="font-bold text-amber-300">
+          <div className="bg-slate-50 px-2 py-1 rounded border border-slate-200">
+            <span className="text-slate-500 text-[10px] block">{isAr ? 'الدور الحرج (Pu)' : 'Ultimate Period (Pu)'}</span>
+            <span className="font-bold text-amber-800">
               {ultimatePeriod !== undefined ? `${ultimatePeriod} s` : '—'}
             </span>
           </div>
@@ -332,16 +332,16 @@ export const BodeViewer: React.FC<BodeViewerProps> = ({
       </div>
 
       {/* Educational Footer Note */}
-      <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 text-[11px] flex items-start gap-2">
+      <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200 text-[11px] flex items-start gap-2">
         <Activity className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div className="text-slate-300">
+        <div className="text-slate-600">
           {isAr ? (
             <span>
-              <strong className="text-white">قاعدة الاستقرار الهندسية:</strong> يجب أن يعبر الكسب خط الـ 0dB (<span className="text-cyan-300">ωc</span>) <strong className="text-emerald-400">قبل</strong> أن يهبط الطور تحت -180° (<span className="text-rose-400">ω180</span>). إذا أصبح الكسب موجباً عند طور -180°، تتحول التغذية الراجعة السالبة إلى موجبة وتنفجر المنظومة!
+              <strong className="text-slate-900">قاعدة الاستقرار الهندسية:</strong> يجب أن يعبر الكسب خط الـ 0dB (<span className="text-sky-700">ωc</span>) <strong className="text-emerald-700">قبل</strong> أن يهبط الطور تحت -180° (<span className="text-rose-600">ω180</span>). إذا أصبح الكسب موجباً عند طور -180°، تتحول التغذية الراجعة السالبة إلى موجبة وتنفجر المنظومة!
             </span>
           ) : (
             <span>
-              <strong className="text-white">Bode Stability Criterion:</strong> Gain must cross 0 dB (<span className="text-cyan-300">ωc</span>) <strong className="text-emerald-400">before</strong> phase drops below -180° (<span className="text-rose-400">ω180</span>). If gain &gt; 0 dB at -180°, feedback inverts and self-amplifies into violent instability!
+              <strong className="text-slate-900">Bode Stability Criterion:</strong> Gain must cross 0 dB (<span className="text-sky-700">ωc</span>) <strong className="text-emerald-700">before</strong> phase drops below -180° (<span className="text-rose-600">ω180</span>). If gain &gt; 0 dB at -180°, feedback inverts and self-amplifies into violent instability!
             </span>
           )}
         </div>

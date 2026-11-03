@@ -101,20 +101,20 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
   }
 
   return (
-    <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 shadow-lg space-y-4">
+    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-lg space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 text-xs">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-600">
             <Activity className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="font-bold text-white text-xs uppercase tracking-wider">
+            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
               {isAr ? 'لوحة قياس الأداء وضبط الحلقات' : 'Control Metrics & Autotuner'}
             </h4>
           </div>
         </div>
-        <span className="font-mono text-[10px] text-slate-400">
+        <span className="font-mono text-[10px] text-slate-500">
           IAE: {metrics.iae.toFixed(0)}
         </span>
       </div>
@@ -122,21 +122,21 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
       {/* 1. Performance Metrics Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
         {/* IAE */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-slate-400 block text-[10px] mb-0.5">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="text-slate-500 block text-[10px] mb-0.5">
             {isAr ? 'تكامل الخطأ IAE' : 'IAE (∫|e|dt)'}
           </span>
-          <span className="text-base font-bold text-cyan-300">{metrics.iae.toFixed(1)}</span>
+          <span className="text-base font-bold text-sky-700">{metrics.iae.toFixed(1)}</span>
         </div>
 
         {/* Overshoot */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-slate-400 block text-[10px] mb-0.5">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="text-slate-500 block text-[10px] mb-0.5">
             {isAr ? 'نسبة التجاوز %' : 'Peak Overshoot'}
           </span>
           <span
             className={`text-base font-bold ${
-              metrics.peakOvershootPct > 20 ? 'text-amber-400' : 'text-emerald-400'
+              metrics.peakOvershootPct > 20 ? 'text-amber-700' : 'text-emerald-700'
             }`}
           >
             {metrics.peakOvershootPct.toFixed(1)}%
@@ -144,37 +144,37 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
         </div>
 
         {/* Rise Time */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-slate-400 block text-[10px] mb-0.5">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="text-slate-500 block text-[10px] mb-0.5">
             {isAr ? 'زمن الصعود tr' : 'Rise Time (tr)'}
           </span>
-          <span className="text-base font-bold text-slate-200">
+          <span className="text-base font-bold text-slate-700">
             {metrics.riseTime !== undefined ? `${metrics.riseTime.toFixed(1)}s` : '--'}
           </span>
         </div>
 
         {/* Settling Time */}
-        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-slate-400 block text-[10px] mb-0.5">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="text-slate-500 block text-[10px] mb-0.5">
             {isAr ? 'زمن الاستقرار ts' : 'Settling (±2%)'}
           </span>
-          <span className="text-base font-bold text-slate-200">
+          <span className="text-base font-bold text-slate-700">
             {metrics.settlingTime !== undefined ? `${metrics.settlingTime.toFixed(1)}s` : '--'}
           </span>
         </div>
       </div>
 
       {/* Valve Wear & Chatter Alert */}
-      <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-xs font-mono">
+      <div className="p-2.5 rounded-xl bg-slate-50/60 border border-slate-200 flex items-center justify-between text-xs font-mono">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-amber-400" />
-          <span className="text-slate-300">
+          <span className="text-slate-600">
             {isAr ? 'مؤشر اهتزاز الصمام (Valve Chatter):' : 'Cumulative Valve Chatter Index:'}
           </span>
         </div>
         <span
           className={`font-bold ${
-            metrics.valveTravelTotal > 150 ? 'text-rose-400 animate-pulse' : 'text-slate-200'
+            metrics.valveTravelTotal > 150 ? 'text-rose-400 animate-pulse' : 'text-slate-700'
           }`}
         >
           {metrics.valveTravelTotal.toFixed(0)} Δu
@@ -182,7 +182,7 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
       </div>
 
       {/* 2. Åström–Hägglund Relay Autotuner Section */}
-      <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-950 border border-indigo-800/50 space-y-3">
+      <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-950 border border-indigo-200/50 space-y-3">
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-indigo-400" />
@@ -211,18 +211,18 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
         </div>
 
         {/* Limit cycle measurements */}
-        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-300">
-          <div className="p-2 rounded bg-slate-900 border border-slate-800">
-            <span className="text-slate-400 block text-[10px]">
+        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-600">
+          <div className="p-2 rounded bg-white border border-slate-200">
+            <span className="text-slate-500 block text-[10px]">
               {isAr ? 'الدورة النهائية Pu:' : 'Ultimate Period (Pu):'}
             </span>
-            <span className="font-bold text-cyan-300">{Pu.toFixed(2)} s</span>
+            <span className="font-bold text-sky-700">{Pu.toFixed(2)} s</span>
           </div>
-          <div className="p-2 rounded bg-slate-900 border border-slate-800">
-            <span className="text-slate-400 block text-[10px]">
+          <div className="p-2 rounded bg-white border border-slate-200">
+            <span className="text-slate-500 block text-[10px]">
               {isAr ? 'الكسب النهائي Ku:' : 'Ultimate Gain (Ku):'}
             </span>
-            <span className="font-bold text-emerald-300">{Ku.toFixed(2)}</span>
+            <span className="font-bold text-emerald-700">{Ku.toFixed(2)}</span>
           </div>
         </div>
 
@@ -236,8 +236,8 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
               onClick={() => setSelectedRule('zn')}
               className={`p-1.5 rounded-lg border font-mono text-[10px] font-bold transition-colors ${
                 selectedRule === 'zn'
-                  ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-sky-50 border-cyan-400 text-cyan-700 font-bold'
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               Ziegler-Nichols
@@ -246,8 +246,8 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
               onClick={() => setSelectedRule('cc')}
               className={`p-1.5 rounded-lg border font-mono text-[10px] font-bold transition-colors ${
                 selectedRule === 'cc'
-                  ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-sky-50 border-cyan-400 text-cyan-700 font-bold'
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               Cohen-Coon
@@ -256,8 +256,8 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
               onClick={() => setSelectedRule('imc')}
               className={`p-1.5 rounded-lg border font-mono text-[10px] font-bold transition-colors ${
                 selectedRule === 'imc'
-                  ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-sky-50 border-cyan-400 text-cyan-700 font-bold'
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               IMC / Lambda
@@ -266,10 +266,10 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
 
           {/* IMC Lambda speed slider */}
           {selectedRule === 'imc' && (
-            <div className="p-2 rounded bg-slate-900 border border-slate-800 space-y-1">
+            <div className="p-2 rounded bg-white border border-slate-200 space-y-1">
               <div className="flex justify-between text-[10px] font-mono">
-                <span className="text-slate-400">{isAr ? 'زمن الاستجابة المغلقة λ:' : 'Lambda Speed (λ):'}</span>
-                <span className="text-cyan-300 font-bold">{imcLambda.toFixed(1)}s</span>
+                <span className="text-slate-500">{isAr ? 'زمن الاستجابة المغلقة λ:' : 'Lambda Speed (λ):'}</span>
+                <span className="text-sky-700 font-bold">{imcLambda.toFixed(1)}s</span>
               </div>
               <input
                 type="range"
@@ -284,11 +284,11 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({
           )}
 
           {/* Calculated Suggested Tunings */}
-          <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono">
+          <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between text-xs font-mono">
             <div className="flex items-center gap-3">
-              <span className="text-sky-300 font-bold">Kc: {calculatedKc}</span>
-              <span className="text-emerald-300 font-bold">τI: {calculatedTi}s</span>
-              <span className="text-pink-300 font-bold">τD: {calculatedTd}s</span>
+              <span className="text-sky-700 font-bold">Kc: {calculatedKc}</span>
+              <span className="text-emerald-700 font-bold">τI: {calculatedTi}s</span>
+              <span className="text-indigo-700 font-bold">τD: {calculatedTd}s</span>
             </div>
 
             {onApplyTuning && (

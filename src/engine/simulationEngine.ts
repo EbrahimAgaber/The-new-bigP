@@ -406,6 +406,30 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
           outputs[node.id] = 0;
           break;
 
+        case 'CSTRPlant':
+          st.reactorTemp = cfg.feedTemp ?? 350.0;
+          st.jacketTemp = 320.0;
+          outputs[node.id] = st.reactorTemp;
+          break;
+
+        case 'HeatExchangerPlant':
+          st.hexOutletTemp = 65.0;
+          st.hexDeadTimeBuffer = new Array(Math.max(1, Math.round(2.0 / DT))).fill(65.0);
+          outputs[node.id] = st.hexOutletTemp;
+          break;
+
+        case 'DistillationColumnPlant':
+          st.distillatePurity = 98.0;
+          st.bottomsPurity = 2.0;
+          outputs[node.id] = st.distillatePurity;
+          break;
+
+        case 'BoilerDrumPlant':
+          st.boilerLevel = 50.0;
+          st.boilerSwellState = 0.0;
+          st.boilerIntLevel = 50.0;
+          outputs[node.id] = st.boilerLevel;
+          break;
         case 'Cascade':
           st.innerU = cfg.bias ?? 0;
           st.outerSP = 50;
@@ -464,9 +488,9 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
     if (spNode) currentSP = outputs[spNode.id] ?? 0;
 
     const plantNode = graph.nodes.find((n) =>
-      ['Tank', 'FirstOrder', 'HeatedVessel', 'Bioreactor'].includes(n.type)
+      ['Tank', 'FirstOrder', 'HeatedVessel', 'Bioreactor', 'CSTRPlant', 'HeatExchangerPlant', 'DistillationColumnPlant', 'BoilerDrumPlant'].includes(n.type)
     );
-    if (plantNode) currentPV = states[plantNode.id]?.level ?? states[plantNode.id]?.y ?? states[plantNode.id]?.temp ?? outputs[plantNode.id] ?? 0;
+    if (plantNode) currentPV = states[plantNode.id]?.reactorTemp ?? states[plantNode.id]?.hexOutletTemp ?? states[plantNode.id]?.distillatePurity ?? states[plantNode.id]?.boilerLevel ?? states[plantNode.id]?.level ?? states[plantNode.id]?.y ?? states[plantNode.id]?.temp ?? outputs[plantNode.id] ?? 0;
 
     // 2. Algebraic loop iteration (multi-pass to resolve feeds, sums, controllers, and valves)
     for (let pass = 0; pass < 3; pass++) {
@@ -810,6 +834,25 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
             break;
           }
 
+          case 'CSTRPlant': {
+            outputs[node.id] = st.reactorTemp ?? 350.0;
+            break;
+          }
+
+          case 'HeatExchangerPlant': {
+            outputs[node.id] = st.hexOutletTemp ?? 65.0;
+            break;
+          }
+
+          case 'DistillationColumnPlant': {
+            outputs[node.id] = st.distillatePurity ?? 98.0;
+            break;
+          }
+
+          case 'BoilerDrumPlant': {
+            outputs[node.id] = st.boilerLevel ?? 50.0;
+            break;
+          }
           case 'MIMOPlant': {
             outputs[node.id] = st.y1 ?? 0;
             break;
@@ -924,6 +967,97 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
         } else {
           outputs[node.id] = +newY.toFixed(2);
         }
+      } else if (node.type === 'CSTRPlant') {
+        const u_cw = getInputSignal(node.id, 0, 40);
+        const externalDist = externalDisturbances[node.id] ?? 0;
+        const T_feed = getInputSignal(node.id, 1, cfg.feedTemp ?? 350.0) + externalDist;
+
+        let Tr = st.reactorTemp ?? 350.0;
+        let Tj = st.jacketTemp ?? 320.0;
+
+        const deltaTr = Tr - 350.0;
+        const Q_gen = 28.0 * (1.0 + 0.08 * deltaTr + 0.003 * deltaTr * deltaTr);
+        const UA = 1.4;
+        const Q_rem = UA * (Tr - Tj);
+
+        const T_cw_in = 295.0;
+        const F_cw = Math.max(0, u_cw) * 0.05;
+        const dTj = ((F_cw * (T_cw_in - Tj) + Q_rem * 0.8) / 2.5) * DT;
+        Tj = Math.max(280.0, Math.min(380.0, Tj + dTj));
+
+        const dTr = (0.04 * (T_feed - Tr) + (Q_gen - Q_rem) * 0.35) * DT;
+        Tr = Math.max(250.0, Math.min(450.0, Tr + dTr));
+
+        st.reactorTemp = +Tr.toFixed(2);
+        st.jacketTemp = +Tj.toFixed(2);
+        outputs[node.id] = st.reactorTemp;
+      } else if (node.type === 'HeatExchangerPlant') {
+        const u_steam = Math.min(100, Math.max(0, getInputSignal(node.id, 0, 50)));
+        const externalDist = externalDisturbances[node.id] ?? 0;
+        const F_proc = Math.max(10, getInputSignal(node.id, 1, cfg.processFluidFlow ?? 50.0) + externalDist);
+
+        let Tout = st.hexOutletTemp ?? 65.0;
+        const heatTransfer = (u_steam * 1.2) * (50.0 / F_proc);
+        const steadyTarget = 25.0 + heatTransfer;
+
+        const effectiveDeadTime = Math.max(0.5, (50.0 / F_proc) * 2.0);
+        const effectiveTau = Math.max(1.0, (50.0 / F_proc) * 4.0);
+
+        const alpha = Math.exp(-DT / effectiveTau);
+        Tout = Tout * alpha + steadyTarget * (1 - alpha);
+
+        if (!st.hexDeadTimeBuffer) {
+          st.hexDeadTimeBuffer = new Array(Math.max(1, Math.round(effectiveDeadTime / DT))).fill(Tout);
+        }
+        st.hexDeadTimeBuffer.push(Tout);
+        const delaySteps = Math.max(1, Math.round(effectiveDeadTime / DT));
+        while (st.hexDeadTimeBuffer.length > delaySteps) {
+          st.hexOutletTemp = st.hexDeadTimeBuffer.shift();
+        }
+
+        outputs[node.id] = +(st.hexOutletTemp ?? Tout).toFixed(2);
+      } else if (node.type === 'DistillationColumnPlant') {
+        const L = getInputSignal(node.id, 0, 50);
+        const V = getInputSignal(node.id, 1, 50);
+        const externalDist = externalDisturbances[node.id] ?? 0;
+        const F_dist = getInputSignal(node.id, 2, 0) + externalDist;
+
+        let xD = st.distillatePurity ?? 98.0;
+        let xB = st.bottomsPurity ?? 2.0;
+
+        const targetXD = 98.0 + 0.12 * (L - 50) - 0.08 * (V - 50) - 0.06 * F_dist;
+        const targetXB = 2.0 - 0.09 * (L - 50) + 0.14 * (V - 50) + 0.04 * F_dist;
+
+        const tauCol = 12.0;
+        const alpha = Math.exp(-DT / tauCol);
+        xD = xD * alpha + targetXD * (1 - alpha);
+        xB = xB * alpha + targetXB * (1 - alpha);
+
+        st.distillatePurity = +Math.max(80.0, Math.min(99.9, xD)).toFixed(2);
+        st.bottomsPurity = +Math.max(0.1, Math.min(20.0, xB)).toFixed(2);
+        outputs[node.id] = st.distillatePurity;
+      } else if (node.type === 'BoilerDrumPlant') {
+        const F_fw = getInputSignal(node.id, 0, 50);
+        const externalDist = externalDisturbances[node.id] ?? 0;
+        const F_steam = getInputSignal(node.id, 1, 50) + externalDist;
+
+        let levelInt = st.boilerIntLevel ?? 50.0;
+        let swellState = st.boilerSwellState ?? 0.0;
+
+        const dMass = (F_fw - F_steam) * 0.04;
+        levelInt += dMass * DT;
+
+        const tauP = 4.0;
+        const deltaDemand = (F_steam - 50) - (F_fw - 50);
+        const alphaP = Math.exp(-DT / tauP);
+        swellState = swellState * alphaP + deltaDemand * 0.35 * (1 - alphaP);
+
+        const apparentLevel = levelInt + swellState;
+
+        st.boilerIntLevel = Math.max(5.0, Math.min(95.0, levelInt));
+        st.boilerSwellState = swellState;
+        st.boilerLevel = +Math.max(0.0, Math.min(100.0, apparentLevel)).toFixed(2);
+        outputs[node.id] = st.boilerLevel;
       } else if (node.type === 'MIMOPlant') {
         const u1Raw = getInputSignal(node.id, 0, 0);
         const u2Raw = getInputSignal(node.id, 1, 0);
@@ -1045,6 +1179,9 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
 
     // Milestone 3 secondary traces
     const mimoNode = graph.nodes.find((n) => n.type === 'MIMOPlant');
+    const distNode = graph.nodes.find((n) => n.type === 'DistillationColumnPlant');
+    const cstrNode = graph.nodes.find((n) => n.type === 'CSTRPlant');
+    const boilerNode = graph.nodes.find((n) => n.type === 'BoilerDrumPlant');
     const splitNode = graph.nodes.find((n) => n.type === 'SplitRange');
     const selectorNode = graph.nodes.find((n) => n.type === 'Selector');
     const ffNode = graph.nodes.find((n) => n.type === 'FeedForward');
@@ -1058,7 +1195,16 @@ export function createSimulationEngine(initialGraph: CircuitGraph): EngineInstan
     let heatValve: number | undefined = undefined;
     let selectedChannel: string | undefined = undefined;
 
-    if (mimoNode && states[mimoNode.id]) {
+    if (distNode && states[distNode.id]) {
+      pv2 = states[distNode.id].bottomsPurity;
+      sp2 = 2.0;
+    } else if (cstrNode && states[cstrNode.id]) {
+      pv2 = states[cstrNode.id].jacketTemp;
+      sp2 = 320.0;
+    } else if (boilerNode && states[boilerNode.id]) {
+      pv2 = states[boilerNode.id].boilerIntLevel;
+      sp2 = 50.0;
+    } else if (mimoNode && states[mimoNode.id]) {
       pv2 = states[mimoNode.id].y2;
       sp2 = 50;
       u2 = outputs[mimoNode.id];
